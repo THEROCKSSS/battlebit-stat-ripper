@@ -36,7 +36,14 @@ Working, locally verified:
   leave/disband), profile portraits/bios/socials, inline SVG icon set, rate
   limits, and a first-class ripper download page at `/download` with direct
   `/download/windows` and `/download/zip` routes.
-- **28 tests passing** (ripper: 8 core + 4 error + 2 log + 2 history; server: 12).
+- **Steam identity pass** — Steam OpenID sign-in (`/auth/steam`, state-checked
+  assertion), `players` directory (`/players`) accepting any SteamID64, profile
+  URL, or vanity, and mini-profile cards with avatar, animated frame, background,
+  level, status, summary, location, and a Steam link.
+- **Seeded players** — 7 profiles imported (the six community IDs plus Owen):
+  GodfatherAct, Yuh_Eclipse, skeletalsavage, noobiewithboobies, racoonman, Micro,
+  Owenrocks200. Media cached under `server/data/uploads/steam/`.
+- **42 tests passing** (ripper 16; server 17 + Steam units 9).
 
 Live verification:
 
@@ -59,6 +66,14 @@ Live verification:
 - Real rip writes log, summary, history row, and both export files.
 - `tools/extract_tool_names.py` verified against the installed game; reproduces
   133 tool IDs.
+- Steam pass verified against the live tailnet URL: `/players` lists 7 profiles,
+  `/p/<id>` renders the card for seeded players, frame/background media returns
+  200 with correct MIME, and `/auth/steam` redirects to Steam with the tailnet
+  `return_to`/realm.
+- Add-player form exercised in a real browser: pasted ID → fetched profile →
+  redirected to the new page with a confirmation.
+- Steam card + full record verified together on Owen's page (3,873 kills etc. still
+  render under the card).
 
 ## Commands
 
@@ -76,6 +91,13 @@ cd server; .venv\Scripts\python.exe -m unittest discover -s tests -v
 # site
 cd server
 .venv\Scripts\waitress-serve --host 127.0.0.1 --port 8099 app:app
+
+# served copy (sets BBR_PUBLIC_URL for Steam OpenID)
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\serve_site.ps1
+
+# seed/refresh Steam player cards
+python scripts\seed_players.py
+python scripts\seed_players.py 76561198028883348
 
 # private tailnet access (persists across reboots; reverse with ... off)
 tailscale serve --bg --https=8552 http://127.0.0.1:8099
@@ -99,7 +121,16 @@ build\build.ps1
   `/download`, `/download/windows` (alias `/download/exe`), `/download/zip`.
 - Clans: `/clans`, `/clans/new`, `/c/<slug>`, `/c/<slug>/manage`.
 - Profile editing: `/p/<steamid>/edit` (owner only).
-- Media: `/media/avatars/<file>`, `/media/clans/<file>` (WebP, forced MIME).
+- Media: `/media/avatars/<file>`, `/media/clans/<file>` (WebP, forced MIME);
+  `/media/steam/<file>` (original Steam JPEG/PNG, MIME from extension).
+- Steam: `/players`, `/auth/steam`, `/auth/steam/callback`; `players` table migrated
+  in place. Private Steam profiles still expose header fields.
+- Persistence: the site is started by
+  `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\bbr-stats-site.cmd`,
+  which runs `scripts/serve_site.ps1` hidden at logon. Registering a scheduled task
+  failed with access denied (needs an elevated shell), so the Startup folder is the
+  no-admin mechanism. A running instance is also kept alive across Hermes session
+  ends.
 - Rate limits are in-memory and single-process; table in `server/README.md`.
 - Browser verification covered home, clans, clan, profile, download, account,
   and manage pages at 320/390/768/1440 px with no horizontal overflow.
@@ -107,12 +138,15 @@ build\build.ps1
 ## Next
 
 1. Decide whether the site gets a public URL (opt-in). The code now lives at
-   `github.com/THEROCKSSS/battlebit-stat-ripper`; tailnet access is already live.
+   `github.com/THEROCKSSS/battlebit-stat-ripper`; tailnet and logon startup are live.
 2. Link the release from `familiar/battlebit-arsenal` on Forgejo (separate repo,
    needs its own write). The site's `/download` page already links to GitHub
    Releases.
-3. Optional polish: signed Windows binary, auto-update check, a direct "upload to
+3. Steam cards go stale (level/status/frames). Refresh them with
+   `python scripts/seed_players.py <id ...>` or a small scheduled job; there is no
+   Steam Web API key, so the public XML/HTML is the source.
+4. Optional polish: signed Windows binary, auto-update check, a direct "upload to
    site" button in the GUI (needs an API key/session design), history chart in the
    GUI.
-4. If the game updates, follow `docs/REPLICATION.md` section 9: re-run diagnostics,
+5. If the game updates, follow `docs/REPLICATION.md` section 9: re-run diagnostics,
    compare raw sizes, re-extract tool names, add a synthetic test, bump version.

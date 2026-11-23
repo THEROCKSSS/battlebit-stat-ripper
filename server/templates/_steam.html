@@ -1,0 +1,45 @@
+{% macro steam_card(player, compact=false) -%}
+<section class="steam-card{{ ' steam-card-compact' if compact else '' }}{% if player['background_path'] %} has-bg{% endif %}"
+         aria-label="Steam profile for {{ player['persona_name'] }}">
+  {% if player['background_path'] %}
+    <div class="steam-card-bg" aria-hidden="true"
+         style="background-image:url('{{ url_for('media_file', kind='steam', filename=player['background_path']) }}')"></div>
+  {% endif %}
+  <div class="steam-card-veil" aria-hidden="true"></div>
+  <div class="steam-card-body">
+    <span class="steam-avatar">
+      {% if player['avatar_path'] %}
+        <img src="{{ url_for('media_file', kind='steam', filename=player['avatar_path']) }}"
+             alt="{{ player['persona_name'] }} on Steam" width="184" height="184" loading="lazy">
+      {% else %}
+        <span class="steam-avatar-fallback" aria-hidden="true">{{ (player['persona_name'] or '?')[:1]|upper }}</span>
+      {% endif %}
+      {% if player['frame_path'] %}
+        <img class="steam-frame" src="{{ url_for('media_file', kind='steam', filename=player['frame_path']) }}"
+             alt="" width="184" height="184" loading="lazy" aria-hidden="true">
+      {% endif %}
+    </span>
+    <div class="steam-ident">
+      <div class="steam-name-row">
+        <h2>{{ player['persona_name'] }}</h2>
+        {% if player['level'] %}
+          <span class="steam-level" title="Steam level">{{ player['level'] }}</span>
+        {% endif %}
+        {% if player['status'] %}
+          <span class="steam-status">{{ player['status'] }}</span>
+        {% endif %}
+      </div>
+      {% if player['real_name'] %}<p class="steam-real">{{ player['real_name'] }}</p>{% endif %}
+      {% if player['summary'] %}<p class="steam-summary">{{ player['summary'] }}</p>{% endif %}
+      <div class="steam-meta">
+        {% if player['location'] %}<span>{{ player['location'] }}</span>{% endif %}
+        {% if player['member_since'] %}<span>On Steam since {{ player['member_since']|date }}</span>{% endif %}
+        <a class="steam-link" href="{{ player['profile_url'] }}" target="_blank" rel="noopener noreferrer">
+          Steam profile
+          <svg class="icon" aria-hidden="true"><use href="#i-external"></use></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+{%- endmacro %}

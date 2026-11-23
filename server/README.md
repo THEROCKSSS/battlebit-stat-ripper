@@ -26,6 +26,11 @@ session cookie is marked `Secure`.
 ## What it includes
 
 - Accounts with CSRF-protected register/login/logout and session cookies.
+- Steam OpenID sign-in; first sign-in creates the account from the public Steam
+  profile, and an existing capture for that Steam ID is transferred to it.
+- Steam player directory: any Steam ID, profile link, or vanity can get a page with
+  persona name, real name, summary, avatar, avatar frame, level, status, location,
+  and animated background. Stats still require that player's own capture.
 - Profile uploads (`.bbrstats` file or pasted JSON), public/private visibility,
   leaderboard, raw JSON view.
 - Profile presentation: portrait upload, display name, bio, six social link
@@ -44,11 +49,15 @@ session cookie is marked `Secure`.
 ## Data
 
 - `data/profiles.db` — SQLite database. New columns/tables are migrated in place.
+- `players` — public Steam identity rows (`steam_id`, persona, summary, media paths,
+  level, status); separate from captured `profiles`.
 - `data/secret_key` — generated session key.
 - `data/uploads/avatars/` and `data/uploads/clans/` — WebP media.
+- `data/uploads/steam/` — cached Steam avatars, avatar frames, and backgrounds.
 - `BBR_SERVER_DATA` overrides the data directory.
 - `BBR_SECRET_KEY` overrides the generated session key.
 - `BBR_HTTPS=1` marks the session cookie `Secure` behind TLS.
+- `BBR_PUBLIC_URL` sets the absolute origin used for Steam OpenID return URLs.
 - `BBR_DOWNLOAD` / `BBR_DOWNLOAD_ZIP` override the exe and zip paths.
 
 ## Rate limits
@@ -59,6 +68,8 @@ behind multiple workers.
 | Action | Limit |
 |---|---|
 | Register | 5 / hour / IP |
+| Steam sign-in start | 20 / 10 min / IP |
+| Steam player lookup | 6 / hour / IP |
 | Login | 30 attempts / 10 min / IP, plus 8 failures / 10 min / IP+username |
 | Upload capture | 10 / hour / account |
 | Profile edit / portrait | 20 / hour / account |

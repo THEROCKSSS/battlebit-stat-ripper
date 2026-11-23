@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% from "_steam.html" import steam_card %}
+{% block title %}{{ player['persona_name'] }} — BattleBit profile{% endblock %}
+{% block content %}
+
+<div class="breadcrumb">
+  <a href="{{ url_for('players') }}">Players</a>
+  <span aria-hidden="true">/</span>
+  <span>{{ player['persona_name'] }}</span>
+</div>
+
+{{ steam_card(player) }}
+
+{% if is_owner %}
+<div class="owner-bar">
+  <a class="button button-primary small" href="{{ url_for('upload') }}">
+    <svg class="icon" aria-hidden="true"><use href="#i-upload"></use></svg>
+    Upload your capture
+  </a>
+  <span class="muted small">Signed in as this Steam account.</span>
+</div>
+{% endif %}
+
+<section class="card no-capture">
+  <div class="card-head">
+    <h2>No BattleBit capture yet</h2>
+    <span class="card-note">Steam profile only</span>
+  </div>
+  <p class="muted">
+    Steam provides the name, portrait, frame, and summary above. BattleBit stats are not
+    public: they come from the player's own official API response, captured by the ripper
+    and uploaded here.
+  </p>
+  <ol class="run-steps">
+    <li><span>Get the ripper and run it with Steam open.</span><small>It reads only the signed-in account.</small></li>
+    <li><span>Upload the <code>.bbrstats</code> file.</span><small>Stats attach to this exact Steam ID.</small></li>
+    <li><span>This page switches to the full service record.</span><small>Steam card stays on top.</small></li>
+  </ol>
+  <div class="no-capture-actions">
+    <a class="button button-primary" href="{{ url_for('download') }}">Get the ripper</a>
+    {% if current_user %}
+      <a class="button button-ghost" href="{{ url_for('upload') }}">Upload a capture</a>
+    {% else %}
+      <a class="button button-ghost" href="{{ url_for('steam_login') }}">Sign in through Steam</a>
+    {% endif %}
+  </div>
+</section>
+
+{% endblock %}

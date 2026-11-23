@@ -7,7 +7,13 @@
     <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
     <p class="kicker">Account / new</p>
     <h1>Create your account</h1>
-    <p class="muted">One account holds one or more player records. Email is not required.</p>
+    <p class="muted">Steam sign-in creates the account and fills in your Steam name and portrait. A local username works too.</p>
+
+    <a class="button button-steam wide" href="{{ url_for('steam_login', next=url_for('upload')) }}">
+      <svg class="icon" aria-hidden="true"><use href="#i-steam"></use></svg>
+      Continue with Steam
+    </a>
+    <p class="auth-divider"><span>or make a local account</span></p>
 
     <label class="field">
       <span>Username</span>

@@ -128,9 +128,13 @@ byte layout is in [`docs/FORMAT.md`](docs/FORMAT.md).
 
 ## Website
 
-The `server/` folder is a Flask site with accounts, uploads, public profile
-pages, private visibility, a leaderboard, clans, profile portraits/social links,
-and a first-class ripper download page.
+The `server/` folder is a Flask site with Steam sign-in, a Steam player directory,
+uploads, public profile pages, private visibility, a leaderboard, clans, profile
+portraits/social links, and a first-class ripper download page.
+
+Every Steam ID can get a page built from that public Steam profile: persona name,
+real name, summary, avatar, avatar frame, level, status, location, and animated
+background. BattleBit stats still come only from the player's own uploaded capture.
 
 ```powershell
 cd server
@@ -146,7 +150,9 @@ Open <http://127.0.0.1:8099>. The SQLite database and session key are created in
 Site surface:
 
 - `/` — front page, recent public records, clan preview, ripper card
-- `/p/<steamid>` — public record; owner can edit portrait, name, bio, socials
+- `/players` — Steam player directory; paste any Steam ID, profile link, or vanity
+- `/p/<steamid>` — Steam card plus public record; owner can edit portrait, name, bio, socials
+- `/auth/steam` — Steam OpenID sign-in (creates the account on first use)
 - `/clans` — directory with search and sort
 - `/clans/new` — create a clan (tag, crest, join mode, socials)
 - `/c/<slug>` — clan page with roster and combined public stats
@@ -168,7 +174,16 @@ podman run -d --name bbr-profiles -p 127.0.0.1:8099:8099 \
 ```
 
 Set `BBR_HTTPS=1` behind a TLS reverse proxy so the session cookie is marked
-`Secure`.
+`Secure`. Set `BBR_PUBLIC_URL` to the site's absolute origin (for example
+`https://owens-pc-vpn.tailff2683.ts.net:8552`) so Steam OpenID returns to the right
+host.
+
+Seed the player directory with the community profiles the site launched with:
+
+```powershell
+python scripts/seed_players.py            # the six seeded IDs
+python scripts/seed_players.py 7656119... # any Steam ID
+```
 
 ## Build the Windows app
 
@@ -195,7 +210,8 @@ classification, log/summary writing, ticket redaction, and history dedupe.
 
 The server suite covers upload validation, private visibility, CSRF, avatar and
 social-link editing, clan creation, join requests and approval, rate limiting,
-social URL validation, and the download routes:
+social URL validation, the download routes, Steam profile parsing, OpenID
+assertion checks, and the player directory:
 
 ```powershell
 cd server
@@ -208,6 +224,7 @@ cd server
 - [`docs/REPLICATION.md`](docs/REPLICATION.md) — rebuild the whole pipeline from scratch.
 - [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) — error codes and fixes.
 - [`docs/PRIVACY.md`](docs/PRIVACY.md) — what is sent, stored, and shareable.
+- [`docs/STEAM.md`](docs/STEAM.md) — Steam OpenID, public profile sync, player cards.
 - [`docs/RELEASING.md`](docs/RELEASING.md) — tag → CI build → release assets.
 - [`HANDOFF.md`](HANDOFF.md) — current state and next steps.
 

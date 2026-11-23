@@ -12,6 +12,7 @@ import os
 import re
 import secrets
 import time
+import urllib.parse
 from collections import defaultdict
 from datetime import datetime, timezone
 from functools import wraps
@@ -31,12 +32,15 @@ from flask import (
     session,
     url_for,
 )
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import db
 import media
 import site_helpers as H
 import socials
+import steam_openid
+import steam_profiles
 from rate_limit import LIMITER
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -54,8 +58,10 @@ ZIP_PATH = Path(
     )
 )
 RIPPER_VERSION = "0.2.0"
+PUBLIC_URL = os.environ.get("BBR_PUBLIC_URL", "").rstrip("/")
 MAX_PROFILE_BYTES = 2 * 1024 * 1024
 UPLOAD_LIMIT = (10, 3600)  # 10 captures per account per hour
+PLAYER_ADD_LIMIT = (6, 3600)  # 6 Steam lookups per IP per hour
 
 
 
@@ -83,6 +89,7 @@ app.config.update(
 )
 app.jinja_env.trim_blocks = True
 app.jinja_env.lstrip_blocks = True
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_prefix=1)
 
 if os.environ.get("BBR_HTTPS") == "1":
     app.config["SESSION_COOKIE_SECURE"] = True
@@ -277,6 +284,55 @@ def _can_view(row, user) -> bool:
     return bool(user) and user["id"] == row["user_id"]
 
 
+def _load_player(steam_id: str):
+    return get_db().execute(
+        "SELECT * FROM players WHERE steam_id = ?", (steam_id,)
+    ).fetchone()
+
+
+def _public_url(endpoint: str, **values: Any) -> str:
+    """Absolute URL for links Steam must be able to read back."""
+    path = url_for(endpoint, **values)
+    if PUBLIC_URL:
+        return PUBLIC_URL + path
+    return url_for(endpoint, _external=True, **values)
+
+
+def _unique_username(conn, base: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9_]", "", base or "")[:20] or "player"
+    if len(cleaned) < 3:
+        cleaned = f"player{cleaned}"
+    candidate = cleaned
+    suffix = 1
+    while conn.execute(
+        "SELECT 1 FROM users WHERE username = ?", (candidate,)
+    ).fetchone():
+        suffix += 1
+        candidate = f"{cleaned}{suffix}"
+    return candidate
+
+
+def _get_or_create_steam_user(conn, steam_id: str, persona: str):
+    user = conn.execute(
+        "SELECT * FROM users WHERE steam_id = ?", (steam_id,)
+    ).fetchone()
+    if user:
+        return user
+    username = _unique_username(conn, persona)
+    cur = conn.execute(
+        "INSERT INTO users (username, password_hash, steam_id, created_at) VALUES (?, ?, ?, ?)",
+        (username, generate_password_hash(secrets.token_urlsafe(32)), steam_id, utc_now()),
+    )
+    conn.commit()
+    return conn.execute("SELECT * FROM users WHERE id = ?", (cur.lastrowid,)).fetchone()
+
+
+def _sign_in_session(user) -> None:
+    session.clear()
+    session["user_id"] = user["id"]
+    session["_csrf"] = secrets.token_urlsafe(32)
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -392,6 +448,60 @@ def login():
         _record_attempt(attempt_key)
         flash("Wrong username or password.", "error")
     return render_template("login.html")
+
+
+@app.get("/auth/steam")
+def steam_login():
+    allowed, retry = LIMITER.hit(f"steam:{request.remote_addr or '?'}", 20, 600)
+    if not allowed:
+        return (
+            render_template("429.html", retry=retry, scope="steam"),
+            429,
+            {"Retry-After": str(retry)},
+        )
+    state = secrets.token_urlsafe(24)
+    session["steam_state"] = state
+    target = request.args.get("next", "")
+    if target.startswith("/"):
+        session["steam_next"] = target
+    return_to = _public_url("steam_callback", state=state)
+    parsed = urllib.parse.urlparse(return_to)
+    realm = f"{parsed.scheme}://{parsed.netloc}"
+    return redirect(steam_openid.build_login_url(return_to, realm))
+
+
+@app.get("/auth/steam/callback")
+def steam_callback():
+    expected = session.pop("steam_state", None)
+    state = request.args.get("state", "")
+    if not expected or not secrets.compare_digest(state, expected):
+        abort(400, "Expired Steam sign-in. Start again.")
+    steam_id = steam_openid.verify(request.args.to_dict())
+    if not steam_id:
+        flash("Steam did not confirm that sign-in. Try again.", "error")
+        return redirect(url_for("login"))
+    conn = get_db()
+    try:
+        player = steam_profiles.refresh_player(conn, steam_id, MEDIA_DIR)
+    except steam_profiles.SteamError as exc:
+        player = _load_player(steam_id)
+        if player is None:
+            flash(f"Signed in to Steam, but the profile could not be read: {exc}", "error")
+            return redirect(url_for("login"))
+    user = _get_or_create_steam_user(conn, steam_id, player["persona_name"])
+    # Steam proves who owns this Steam ID, so hand any existing capture record
+    # for it to this account (a local password account may have uploaded it).
+    conn.execute(
+        "UPDATE profiles SET user_id = ? WHERE steam_id = ? AND user_id != ?",
+        (user["id"], steam_id, user["id"]),
+    )
+    conn.commit()
+    target = session.get("steam_next") or url_for("me")
+    if not str(target).startswith("/"):
+        target = url_for("me")
+    _sign_in_session(user)
+    flash(f"Signed in through Steam as {player['persona_name']}.", "ok")
+    return redirect(target)
 
 
 @app.post("/logout")
@@ -510,13 +620,77 @@ def me():
     return render_template("me.html", profiles=profiles, clan=clan)
 
 
+@app.get("/players")
+def players():
+    query = (request.args.get("q") or "").strip()[:40]
+    conn = get_db()
+    if query:
+        rows = conn.execute(
+            """
+            SELECT * FROM players
+            WHERE persona_name LIKE ? OR real_name LIKE ?
+            ORDER BY persona_name COLLATE NOCASE
+            LIMIT 60
+            """,
+            (f"%{query}%", f"%{query}%"),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM players ORDER BY persona_name COLLATE NOCASE LIMIT 60"
+        ).fetchall()
+    total = conn.execute("SELECT COUNT(*) AS n FROM players").fetchone()["n"]
+    captured = {
+        row["steam_id"]
+        for row in conn.execute("SELECT steam_id FROM profiles WHERE visibility = 'public'")
+    }
+    return render_template(
+        "players.html",
+        players=rows,
+        query=query,
+        total=total,
+        captured=captured,
+    )
+
+
+@app.post("/players/add")
+def player_add():
+    verify_csrf()
+    allowed, retry = LIMITER.hit(
+        f"playeradd:{request.remote_addr or '?'}", *PLAYER_ADD_LIMIT
+    )
+    if not allowed:
+        return (
+            render_template("429.html", retry=retry, scope="player lookup"),
+            429,
+            {"Retry-After": str(retry)},
+        )
+    raw = request.form.get("steam", "")
+    try:
+        steam_id = steam_profiles.resolve_steam_id(raw)
+        steam_profiles.refresh_player(get_db(), steam_id, MEDIA_DIR)
+    except steam_profiles.SteamError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("players"))
+    flash("Steam profile added. Upload a capture to attach stats.", "ok")
+    return redirect(url_for("profile", steam_id=steam_id))
+
+
 @app.get("/p/<steam_id>")
 def profile(steam_id: str):
     if not STEAM_ID_RE.match(steam_id):
         abort(404)
     row = _load_profile(steam_id)
+    player = _load_player(steam_id)
     if not row:
-        abort(404)
+        if not player:
+            abort(404)
+        owner = bool(current_user()) and current_user()["steam_id"] == steam_id
+        return render_template(
+            "player.html",
+            player=player,
+            is_owner=owner,
+            captured=False,
+        )
     user = current_user()
     if not _can_view(row, user):
         abort(404)
@@ -527,11 +701,27 @@ def profile(steam_id: str):
     weapons = [w for w in data.get("weapons", []) if w.get("kills") or w.get("extra")][:12]
     max_kills = max([w.get("kills", 0) for w in weapons] or [1])
     max_class_score = max([c.get("score", 0) for c in classes.values()] or [1])
+    name = (
+        row["display_name"]
+        or (player["persona_name"] if player else "")
+        or H.profile_name(row)
+    )
+    if row["avatar_path"]:
+        avatar_path, avatar_kind = row["avatar_path"], "avatars"
+    elif player and player["avatar_path"]:
+        avatar_path, avatar_kind = player["avatar_path"], "steam"
+    else:
+        avatar_path, avatar_kind = None, "avatars"
+    bio = row["bio"] or (player["summary"] if player else "")
     return render_template(
         "profile.html",
         row=row,
-        name=H.profile_name(row),
-        avatar_path=row["avatar_path"],
+        player=player,
+        name=name,
+        avatar_path=avatar_path,
+        avatar_kind=avatar_kind,
+        bio=bio,
+        captured=True,
         clan=H.profile_clan(get_db(), row["user_id"]),
         social_links=H.profile_socials(row),
         data=data,

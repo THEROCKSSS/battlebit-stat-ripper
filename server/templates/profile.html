@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_macros.html" import avatar, crest, clan_chip, social_icons %}
+{% from "_steam.html" import steam_card %}
 {% block title %}{{ name }} — BattleBit profile{% endblock %}
 {% block content %}
 
@@ -16,9 +17,11 @@
   </div>
 {% endif %}
 
+{% if player %}{{ steam_card(player, compact=true) }}{% endif %}
+
 <section class="record-head">
   <div class="record-identity">
-    {{ avatar(avatar_path, name, 'xl') }}
+    {{ avatar(avatar_path, name, 'xl', kind=avatar_kind) }}
     <div class="record-copy">
       <p class="kicker">Service record / {{ data.get('source', {}).get('game_build') or 'BattleBit' }}</p>
       <h1>{{ name }}</h1>
@@ -30,7 +33,7 @@
         {% endif %}
         <span class="verified"><svg class="icon" aria-hidden="true"><use href="#i-shield"></use></svg> Official API capture</span>
       </div>
-      {% if row['bio'] %}<p class="record-bio">{{ row['bio'] }}</p>{% endif %}
+      {% if bio %}<p class="record-bio">{{ bio }}</p>{% endif %}
       {{ social_icons(social_links) }}
     </div>
   </div>

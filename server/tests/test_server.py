@@ -5,6 +5,7 @@ import pathlib
 import re
 import tempfile
 import unittest
+from unittest import mock
 
 from PIL import Image
 
@@ -408,6 +409,115 @@ class SiteTests(unittest.TestCase):
                 server.DOWNLOAD_PATH = old_exe
                 server.ZIP_PATH = old_zip
                 server.app.config.pop("_DOWNLOAD_CACHE", None)
+
+
+    def test_14_steam_login_redirects(self):
+        response = self.client.get("/auth/steam")
+        self.assertEqual(response.status_code, 302)
+        location = response.headers["Location"]
+        self.assertIn("steamcommunity.com/openid/login", location)
+        self.assertIn("openid.mode=checkid_setup", location)
+        self.assertIn("openid.return_to=", location)
+
+    def test_15_steam_player_add_and_page(self):
+        page = self.client.get("/players")
+        self.assertEqual(page.status_code, 200)
+        token = csrf(page.get_data(as_text=True))
+        steam_id = "76561198028883348"
+
+        def fake_refresh(conn, sid, media_root, *args, **kwargs):
+            now = "2026-11-23T00:00:00+00:00"
+            conn.execute(
+                """
+                INSERT INTO players (
+                    steam_id, persona_name, real_name, summary, location,
+                    profile_url, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(steam_id) DO UPDATE SET persona_name = excluded.persona_name
+                """,
+                (
+                    sid,
+                    "Micro",
+                    "Owen",
+                    "Streaming things",
+                    "United States",
+                    f"https://steamcommunity.com/profiles/{sid}/",
+                    now,
+                    now,
+                ),
+            )
+            conn.commit()
+            return dict(
+                conn.execute("SELECT * FROM players WHERE steam_id = ?", (sid,)).fetchone()
+            )
+
+        with mock.patch.object(server.steam_profiles, "refresh_player", fake_refresh):
+            response = self.client.post(
+                "/players/add",
+                data={"_csrf": token, "steam": steam_id},
+                follow_redirects=True,
+            )
+        self.assertEqual(response.status_code, 200)
+        body = response.get_data(as_text=True)
+        self.assertIn("Micro", body)
+        self.assertIn("No BattleBit capture yet", body)
+        self.assertIn("steamcommunity.com/profiles/" + steam_id, body)
+
+    def test_16_player_add_rejects_junk(self):
+        page = self.client.get("/players")
+        token = csrf(page.get_data(as_text=True))
+        response = self.client.post(
+            "/players/add",
+            data={"_csrf": token, "steam": "not a steam id"},
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Steam ID", response.get_data(as_text=True))
+
+
+    def test_17_steam_callback_logs_in_and_claims_capture(self):
+        steam_id = "76561190000000077"
+        now = "2026-11-23T00:00:00+00:00"
+        db_conn = server.db.connect(server.app.config["DATABASE"])
+        owner = db_conn.execute("SELECT id FROM users ORDER BY id LIMIT 1").fetchone()
+        db_conn.execute(
+            """
+            INSERT INTO profiles (steam_id, user_id, persona_name, captured_at, updated_at, visibility, data)
+            VALUES (?, ?, ?, ?, ?, 'public', '{}')
+            """,
+            (steam_id, owner["id"], "Claim Me", now, now),
+        )
+        db_conn.commit()
+        db_conn.close()
+
+        player = {
+            "steam_id": steam_id,
+            "persona_name": "Claimed Player",
+            "real_name": "",
+            "summary": "",
+            "location": "",
+            "profile_url": f"https://steamcommunity.com/profiles/{steam_id}/",
+        }
+        with self.client.session_transaction() as sess:
+            sess["steam_state"] = "state-ok"
+        with mock.patch.object(server.steam_openid, "verify", return_value=steam_id), \
+             mock.patch.object(server.steam_profiles, "refresh_player", return_value=player):
+            response = self.client.get(
+                "/auth/steam/callback?state=state-ok&openid.mode=id_res"
+            )
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.headers["Location"].endswith("/me"))
+
+        db_conn = server.db.connect(server.app.config["DATABASE"])
+        user = db_conn.execute(
+            "SELECT * FROM users WHERE steam_id = ?", (steam_id,)
+        ).fetchone()
+        self.assertIsNotNone(user)
+        profile = db_conn.execute(
+            "SELECT user_id FROM profiles WHERE steam_id = ?", (steam_id,)
+        ).fetchone()
+        self.assertEqual(profile["user_id"], user["id"])
+        db_conn.close()
 
 
 if __name__ == "__main__":

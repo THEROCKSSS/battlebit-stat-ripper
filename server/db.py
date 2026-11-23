@@ -30,6 +30,25 @@ CREATE TABLE IF NOT EXISTS profiles (
 CREATE INDEX IF NOT EXISTS idx_profiles_user ON profiles(user_id);
 CREATE INDEX IF NOT EXISTS idx_profiles_visibility ON profiles(visibility);
 
+CREATE TABLE IF NOT EXISTS players (
+    steam_id        TEXT PRIMARY KEY,
+    persona_name    TEXT NOT NULL,
+    real_name       TEXT NOT NULL DEFAULT '',
+    summary         TEXT NOT NULL DEFAULT '',
+    avatar_path     TEXT,
+    frame_path      TEXT,
+    background_path TEXT,
+    location        TEXT NOT NULL DEFAULT '',
+    member_since    TEXT,
+    level           INTEGER,
+    status          TEXT NOT NULL DEFAULT '',
+    profile_url     TEXT NOT NULL,
+    created_at      TEXT NOT NULL,
+    updated_at      TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_players_name ON players(persona_name);
+
 CREATE TABLE IF NOT EXISTS clans (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     name          TEXT NOT NULL,
@@ -74,6 +93,7 @@ PROFILE_COLUMNS = (
     ("avatar_path", "TEXT"),
     ("social_json", "TEXT NOT NULL DEFAULT '{}'"),
 )
+USER_COLUMNS = (("steam_id", "TEXT"),)
 CLAN_COLUMNS = (("social_json", "TEXT NOT NULL DEFAULT '{}'"),)
 
 
@@ -92,6 +112,10 @@ def connect(path: str | Path) -> sqlite3.Connection:
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA)
     _add_missing_columns(conn, "profiles", PROFILE_COLUMNS)
+    _add_missing_columns(conn, "users", USER_COLUMNS)
     _add_missing_columns(conn, "clans", CLAN_COLUMNS)
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_steam ON users(steam_id) WHERE steam_id IS NOT NULL"
+    )
     conn.commit()
     return conn

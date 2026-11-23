@@ -6,7 +6,8 @@ Two deliverables that share one profile format:
 
 1. `src/bbr_ripper/` — Windows ripper. Steam ticket → official BattleBit API →
    `.bbrstats` JSON + `.txt`.
-2. `server/` — Flask site. Accounts, uploads, public/private profiles, leaderboard.
+2. `server/` — Flask site. Steam OpenID sign-in, Steam player cards (`players`),
+   uploads, public/private profiles, leaderboard, clans.
 
 `docs/FORMAT.md` is the contract between them. Change it before changing either side.
 

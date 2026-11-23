@@ -8,6 +8,7 @@
   <meta name="description" content="Portable BattleBit Remastered player records, clans, and stat pages. Rip your own stats, upload them, and share a page that lasts.">
   <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='steam.css') }}">
 </head>
 <body>
 {% include "_icons.html" %}
@@ -23,6 +24,7 @@
     <nav class="site-nav" aria-label="Main">
       <a href="{{ url_for('leaderboard') }}" {% if request.endpoint == 'leaderboard' %}aria-current="page"{% endif %}>Leaderboard</a>
       <a href="{{ url_for('clans') }}" {% if request.endpoint in ('clans', 'clan_page', 'clan_new', 'clan_manage') %}aria-current="page"{% endif %}>Clans</a>
+      <a href="{{ url_for('players') }}" {% if request.endpoint in ('players', 'player_add', 'profile') %}aria-current="page"{% endif %}>Players</a>
       <a class="nav-download" href="{{ url_for('download') }}">
         <svg class="icon" aria-hidden="true"><use href="#i-download"></use></svg>
         Get the ripper

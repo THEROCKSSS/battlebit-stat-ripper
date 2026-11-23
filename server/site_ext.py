@@ -170,13 +170,19 @@ def register(app, helpers) -> None:
     # ------------------------------------------------------------------
     @app.get("/media/<kind>/<path:filename>")
     def media_file(kind: str, filename: str):
-        if kind not in ("avatars", "clans"):
+        if kind not in ("avatars", "clans", "steam"):
             abort(404)
         if Path(filename).name != filename:
             abort(404)
         folder = media_dir / kind
-        if not (folder / filename).is_file():
+        target = folder / filename
+        if not target.is_file():
             abort(404)
+        if kind == "steam":
+            import mimetypes
+
+            mimetype = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+            return send_from_directory(folder, filename, max_age=86400, mimetype=mimetype)
         return send_from_directory(
             folder, filename, max_age=86400, mimetype="image/webp"
         )
