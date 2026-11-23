@@ -27,7 +27,8 @@ Working, locally verified:
 - **Public repo + CI** — `https://github.com/THEROCKSSS/battlebit-stat-ripper`
   (MIT). GitHub Actions runs the ripper suite on Windows and the server suite on
   Linux for every push/PR; `.github/workflows/release.yml` builds the exes on a
-  `v*` tag and attaches them to the release.
+  `v*` tag and attaches them to the release. `main` requires both checks to merge
+  (admins can still bypass).
 - **v0.2.0 release published** — three assets built by CI; the downloaded CLI
   reports `bbr-ripper 0.2.0` and the zip lists the expected 8 files.
 - **Site feature pass** — clans (directory, create, open/request/closed join,
