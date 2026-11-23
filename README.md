@@ -93,6 +93,10 @@ Other flags:
 --history-csv PATH  export local history to CSV
 --log-dir PATH      override the log directory
 --open              open the output folder when done
+--upload-url URL    site base URL (or BBR_UPLOAD_URL)
+--upload-token T    collector token (or BBR_UPLOAD_TOKEN, safer)
+--watch             keep running: capture + upload, then sleep
+--interval-hours N  delay between watch runs (default 6, floor 5 minutes)
 --version
 ```
 
@@ -108,6 +112,29 @@ The task is per-user, hidden, waits up to 5 minutes for Steam, and appends every
 new capture to local history. If PowerShell blocks `Register-ScheduledTask` by
 policy, run that one command from an elevated PowerShell or create the task in
 Task Scheduler with the same action.
+
+## Background collector
+
+The site can keep a record fresh without anyone pressing a button. Create a token
+under **Account → Collector tokens**, then run the ripper headlessly on the PC
+where that Steam account is signed in:
+
+```powershell
+$env:BBR_UPLOAD_URL = "https://your-site"
+$env:BBR_UPLOAD_TOKEN = "bbr_..."
+.\dist\bbr-ripper-cli.exe --watch --interval-hours 6 --wait-for-steam 600
+```
+
+`--watch` captures, uploads to `POST /api/captures`, and sleeps. Upload failures
+keep the local files and retry on the next cycle. `scripts/run_collector.ps1`
+reads a private `collector.json` and is what the Startup-folder entry runs.
+
+One limit is measured and hard: the BattleBit session is bound to the Steam
+account that requested it. With one account's session, `GetStats` for another
+Steam ID returns HTTP 200 with a one-byte `0x03`, not stats (own record still
+works in the same session). So a server cannot impersonate players or pull any
+Steam ID on demand; each account needs its own collector once. Full evidence and
+the design are in [`docs/COLLECTOR.md`](docs/COLLECTOR.md).
 
 ## How it works
 
@@ -153,6 +180,8 @@ Site surface:
 - `/players` — Steam player directory; paste any Steam ID, profile link, or vanity
 - `/p/<steamid>` — Steam card plus public record; owner can edit portrait, name, bio, socials
 - `/auth/steam` — Steam OpenID sign-in (creates the account on first use)
+- `/me` → **Collector tokens** — create/revoke tokens for background uploads
+- `POST /api/captures` — bearer-token upload for the headless collector
 - `/clans` — directory with search and sort
 - `/clans/new` — create a clan (tag, crest, join mode, socials)
 - `/c/<slug>` — clan page with roster and combined public stats
@@ -225,6 +254,7 @@ cd server
 - [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) — error codes and fixes.
 - [`docs/PRIVACY.md`](docs/PRIVACY.md) — what is sent, stored, and shareable.
 - [`docs/STEAM.md`](docs/STEAM.md) — Steam OpenID, public profile sync, player cards.
+- [`docs/COLLECTOR.md`](docs/COLLECTOR.md) — background collector, tokens, and the session-binding limit.
 - [`docs/RELEASING.md`](docs/RELEASING.md) — tag → CI build → release assets.
 - [`HANDOFF.md`](HANDOFF.md) — current state and next steps.
 

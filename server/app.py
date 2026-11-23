@@ -7,6 +7,7 @@ Then open http://127.0.0.1:8099
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -57,7 +58,7 @@ ZIP_PATH = Path(
         BASE_DIR.parent / "dist" / "BattleBitStatRipper-windows-x64.zip",
     )
 )
-RIPPER_VERSION = "0.2.0"
+RIPPER_VERSION = "0.3.0"
 PUBLIC_URL = os.environ.get("BBR_PUBLIC_URL", "").rstrip("/")
 MAX_PROFILE_BYTES = 2 * 1024 * 1024
 UPLOAD_LIMIT = (10, 3600)  # 10 captures per account per hour
@@ -617,7 +618,146 @@ def me():
             }
         )
     clan = H.profile_clan(get_db(), user["id"])
-    return render_template("me.html", profiles=profiles, clan=clan)
+    tokens = get_db().execute(
+        "SELECT * FROM upload_tokens WHERE user_id = ? AND revoked_at IS NULL ORDER BY id DESC",
+        (user["id"],),
+    ).fetchall()
+    new_token = session.pop("new_token", None)
+    return render_template(
+        "me.html", profiles=profiles, clan=clan, tokens=tokens, new_token=new_token
+    )
+
+
+@app.post("/me/tokens")
+@login_required
+def create_upload_token():
+    verify_csrf()
+    user = current_user()
+    label = (request.form.get("label") or "").strip()[:40]
+    steam_id = (request.form.get("steam_id") or "").strip()
+    if not STEAM_ID_RE.match(steam_id):
+        flash("Enter the Steam ID this token may upload for.", "error")
+        return redirect(url_for("me"))
+    if user["steam_id"] and user["steam_id"] != steam_id:
+        flash("A Steam-linked account can only create tokens for its own Steam ID.", "error")
+        return redirect(url_for("me"))
+    token = "bbr_" + secrets.token_urlsafe(32)
+    conn = get_db()
+    conn.execute(
+        """
+        INSERT INTO upload_tokens (user_id, token_hash, label, steam_id, created_at)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (
+            user["id"],
+            hashlib.sha256(token.encode("utf-8")).hexdigest(),
+            label or "collector",
+            steam_id,
+            utc_now(),
+        ),
+    )
+    conn.commit()
+    session["new_token"] = token
+    flash("Token created. Copy it now; the server only keeps a hash.", "ok")
+    return redirect(url_for("me"))
+
+
+@app.post("/me/tokens/<int:token_id>/revoke")
+@login_required
+def revoke_upload_token(token_id: int):
+    verify_csrf()
+    user = current_user()
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM upload_tokens WHERE id = ? AND user_id = ?",
+        (token_id, user["id"]),
+    ).fetchone()
+    if not row:
+        abort(404)
+    conn.execute(
+        "UPDATE upload_tokens SET revoked_at = ? WHERE id = ?", (utc_now(), token_id)
+    )
+    conn.commit()
+    flash("Token revoked.", "ok")
+    return redirect(url_for("me"))
+
+
+@app.post("/api/captures")
+def api_upload_capture():
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        return jsonify(ok=False, error="Missing bearer token."), 401
+    digest = hashlib.sha256(auth[7:].strip().encode("utf-8")).hexdigest()
+    conn = get_db()
+    token_row = conn.execute(
+        "SELECT * FROM upload_tokens WHERE token_hash = ? AND revoked_at IS NULL",
+        (digest,),
+    ).fetchone()
+    if not token_row:
+        return jsonify(ok=False, error="Unknown or revoked token."), 401
+    doc = request.get_json(silent=True)
+    if not isinstance(doc, dict):
+        return jsonify(ok=False, error="Send the capture as a JSON object."), 400
+    try:
+        steam_id, persona = validate_profile(doc)
+    except ValueError as exc:
+        return jsonify(ok=False, error=str(exc)), 400
+    if steam_id != token_row["steam_id"]:
+        return (
+            jsonify(
+                ok=False,
+                error="This token is bound to a different Steam ID.",
+            ),
+            403,
+        )
+    allowed, retry = LIMITER.hit(
+        f"api_upload:{token_row['user_id']}", *UPLOAD_LIMIT
+    )
+    if not allowed:
+        return (
+            jsonify(ok=False, error="Too many uploads. Try later."),
+            429,
+            {"Retry-After": str(retry)},
+        )
+    existing = _load_profile(steam_id)
+    if existing and existing["user_id"] != token_row["user_id"]:
+        return (
+            jsonify(ok=False, error="That Steam record belongs to another account."),
+            409,
+        )
+    visibility = existing["visibility"] if existing else "public"
+    captured = doc.get("captured_at") or utc_now()
+    conn.execute(
+        """
+        INSERT INTO profiles (steam_id, user_id, persona_name, captured_at, updated_at, visibility, data)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(steam_id) DO UPDATE SET
+            persona_name = excluded.persona_name,
+            captured_at = excluded.captured_at,
+            updated_at = excluded.updated_at,
+            data = excluded.data
+        """,
+        (
+            steam_id,
+            token_row["user_id"],
+            persona,
+            captured,
+            utc_now(),
+            visibility,
+            json.dumps(doc, ensure_ascii=False),
+        ),
+    )
+    conn.execute(
+        "UPDATE upload_tokens SET last_used_at = ? WHERE id = ?",
+        (utc_now(), token_row["id"]),
+    )
+    conn.commit()
+    return jsonify(
+        ok=True,
+        steam_id=steam_id,
+        persona=persona,
+        url=_public_url("profile", steam_id=steam_id),
+    )
 
 
 @app.get("/players")

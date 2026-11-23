@@ -93,6 +93,54 @@
         Steam profile adds a second record to this account.
       </p>
     </div>
+
+    <section class="card" id="collector">
+      <div class="card-head"><h2>Collector tokens</h2><span class="card-note">background uploads</span></div>
+      {% if new_token %}
+      <div class="token-new">
+        <strong>Copy this token now. It is shown once.</strong>
+        <code class="token-value">{{ new_token }}</code>
+      </div>
+      {% endif %}
+      <form class="token-form" method="post" action="{{ url_for('create_upload_token') }}" autocomplete="off">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <div class="form-row">
+          <label class="field">
+            <span>Label</span>
+            <input name="label" maxlength="40" placeholder="Owen's PC">
+          </label>
+          <label class="field">
+            <span>Steam ID this token may upload</span>
+            <input name="steam_id" required inputmode="numeric" value="{{ current_user['steam_id'] or '' }}"
+                   {% if current_user['steam_id'] %}readonly{% endif %}>
+          </label>
+        </div>
+        <button class="button button-ghost small" type="submit">Create token</button>
+      </form>
+      {% if tokens %}
+      <ul class="token-list">
+        {% for token in tokens %}
+        <li class="token-row">
+          <span>
+            <strong>{{ token['label'] }}</strong>
+            <small>{{ token['steam_id'] }} &middot; last used {{ token['last_used_at']|date if token['last_used_at'] else 'never' }}</small>
+          </span>
+          <form method="post" action="{{ url_for('revoke_upload_token', token_id=token['id']) }}" class="inline-form"
+                data-confirm="Revoke this token? The collector using it will stop uploading.">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+            <button class="link-button danger" type="submit">Revoke</button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="muted small">No tokens yet. Create one, then run the ripper with <code>--watch --upload-url</code> on the PC that owns that Steam account.</p>
+      {% endif %}
+      <p class="muted small">
+        Tokens can only upload the Steam ID they are bound to. The server stores a
+        hash, never the token itself.
+      </p>
+    </section>
   </div>
 
   <aside class="account-aside">

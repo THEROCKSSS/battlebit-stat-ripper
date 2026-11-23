@@ -1,6 +1,6 @@
 # HANDOFF
 
-## State (2026-11-23, v0.2.0)
+## State (2026-11-23, v0.3.0)
 
 Working, locally verified:
 
@@ -43,7 +43,20 @@ Working, locally verified:
 - **Seeded players** — 7 profiles imported (the six community IDs plus Owen):
   GodfatherAct, Yuh_Eclipse, skeletalsavage, noobiewithboobies, racoonman, Micro,
   Owenrocks200. Media cached under `server/data/uploads/steam/`.
-- **42 tests passing** (ripper 16; server 17 + Steam units 9).
+- **Collector tokens + API** — `/me` creates SHA-256-hashed bearer tokens bound to
+  one Steam ID; `POST /api/captures` validates and upserts a capture. Tokens can be
+  revoked; every use updates `last_used_at`.
+- **Headless collector** — `--watch --interval-hours` plus `--upload-url` /
+  `--upload-token` (or env vars). `scripts/run_collector.ps1` reads a private
+  `%LOCALAPPDATA%\BBR Stats Ripper\collector.json`, and the Startup entry
+  `bbr-collector.cmd` starts it hidden. A 6-hour collector is running on this PC
+  for Owen's account and has uploaded a real capture.
+- **Measured API limit** — the BattleBit session is bound to the Steam account that
+  requested it. With one account's session, `GetStats` for another Steam ID returns
+  HTTP 200 with a one-byte `0x03`; the same session still returns the owner's full
+  record. A server therefore cannot pull arbitrary Steam IDs. Full evidence in
+  `docs/COLLECTOR.md`.
+- **48 tests passing** (ripper 21 incl. upload; server 27 incl. token/upload/revoke).
 
 Live verification:
 
@@ -99,6 +112,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\serve_site.ps1
 python scripts\seed_players.py
 python scripts\seed_players.py 76561198028883348
 
+# collector (one run, uploads)
+$env:BBR_UPLOAD_URL = "http://127.0.0.1:8099"
+$env:BBR_UPLOAD_TOKEN = "bbr_..."
+.\dist\bbr-ripper-cli.exe --watch --interval-hours 6 --wait-for-steam 600
+
+# collector via the private config + Startup entry
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run_collector.ps1
+
 # private tailnet access (persists across reboots; reverse with ... off)
 tailscale serve --bg --https=8552 http://127.0.0.1:8099
 tailscale serve --https=8552 off
@@ -125,6 +146,8 @@ build\build.ps1
   `/media/steam/<file>` (original Steam JPEG/PNG, MIME from extension).
 - Steam: `/players`, `/auth/steam`, `/auth/steam/callback`; `players` table migrated
   in place. Private Steam profiles still expose header fields.
+- Collector: `/me` token creation/revocation, `POST /api/captures` (bearer token,
+  bound Steam ID, 10 uploads/hour/account).
 - Persistence: the site is started by
   `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\bbr-stats-site.cmd`,
   which runs `scripts/serve_site.ps1` hidden at logon. Registering a scheduled task
@@ -150,3 +173,9 @@ build\build.ps1
    GUI.
 5. If the game updates, follow `docs/REPLICATION.md` section 9: re-run diagnostics,
    compare raw sizes, re-extract tool names, add a synthetic test, bump version.
+6. Session logger (planned): log the Steam IDs in Owen's lobby, then feed them to
+   `/players` for Steam cards. Stats still require each player's collector; do not
+   auto-add every lobby without consent. A token-authenticated batch endpoint is the
+   missing piece.
+7. Friends who want fresh stats install the collector once (token → Startup entry →
+   6-hour loop). There is no server-side substitute; see `docs/COLLECTOR.md`.

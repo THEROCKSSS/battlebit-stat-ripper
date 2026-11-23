@@ -24,8 +24,9 @@ from .logging_setup import (
 )
 from .steam import SteamSession, steam_process_running
 from .tool_names import TOOL_NAMES, pretty_name
+from .upload import UploadError, upload_profile
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 APP_NAME = "BattleBit Stat Ripper"
 TOOL_LABELS = {tool_id: pretty_name(tool_id) for tool_id in TOOL_NAMES}
 
@@ -379,12 +380,62 @@ def main(argv: list[str] | None = None) -> int:
         metavar="SECONDS",
         help="Wait up to N seconds for Steam before starting",
     )
+    parser.add_argument(
+        "--upload-url",
+        default=os.environ.get("BBR_UPLOAD_URL", ""),
+        metavar="URL",
+        help="Site base URL; captures POST to /api/captures (env BBR_UPLOAD_URL)",
+    )
+    parser.add_argument(
+        "--upload-token",
+        default=os.environ.get("BBR_UPLOAD_TOKEN", ""),
+        metavar="TOKEN",
+        help="Collector token from Account (env BBR_UPLOAD_TOKEN is safer)",
+    )
+    parser.add_argument(
+        "--watch",
+        action="store_true",
+        help="Keep running: capture and upload, then sleep for --interval-hours",
+    )
+    parser.add_argument(
+        "--interval-hours",
+        type=float,
+        default=6.0,
+        metavar="HOURS",
+        help="Delay between --watch runs (minimum 5 minutes, default 6 h)",
+    )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     args = parser.parse_args(argv)
 
     def log(message: str) -> None:
         if not args.quiet:
             print(f"[*] {message}")
+
+    def capture_once() -> int:
+        outcome = rip(
+            out_dir=args.out,
+            log=log if (args.verbose or not args.quiet) else None,
+            write_json=True,
+            write_text=not args.json_only,
+            keep_history=not args.no_history,
+            wait_for_steam=args.wait_for_steam,
+        )
+        if args.quiet:
+            for path in outcome.paths:
+                print(path)
+        else:
+            _print_summary(outcome)
+        if args.open:
+            _open_folder(args.out or default_output_dir())
+        if args.upload_url and args.upload_token:
+            try:
+                answer = upload_profile(outcome.profile, args.upload_url, args.upload_token)
+            except UploadError as exc:
+                print(f"Upload failed: {exc}", file=sys.stderr)
+                return 6
+            if not args.quiet:
+                print(f"Uploaded: {answer.get('url') or answer.get('steam_id')}")
+        return 0
 
     try:
         if args.history_csv:
@@ -423,22 +474,22 @@ def main(argv: list[str] | None = None) -> int:
                 run.cleanup()
             return 0
 
-        outcome = rip(
-            out_dir=args.out,
-            log=log if (args.verbose or not args.quiet) else None,
-            write_json=True,
-            write_text=not args.json_only,
-            keep_history=not args.no_history,
-            wait_for_steam=args.wait_for_steam,
-        )
-        if args.quiet:
-            for path in outcome.paths:
-                print(path)
-        else:
-            _print_summary(outcome)
-        if args.open:
-            _open_folder(args.out or default_output_dir())
-        return 0
+        if args.watch:
+            interval = max(300, int(args.interval_hours * 3600))
+            while True:
+                try:
+                    capture_once()
+                except errors.RipperError as exc:
+                    print("\n" + exc.user_message(), file=sys.stderr)
+                except KeyboardInterrupt:
+                    return 130
+                log(f"Collector sleeping for {interval / 3600:.1f} h.")
+                try:
+                    time.sleep(interval)
+                except KeyboardInterrupt:
+                    return 130
+
+        return capture_once()
     except errors.RipperError as exc:
         print("\n" + exc.user_message(), file=sys.stderr)
         print(f"\nLog: {exc.details.get('log', latest_log(args.log_dir) or 'n/a')}", file=sys.stderr)

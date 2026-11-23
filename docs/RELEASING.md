@@ -9,8 +9,8 @@ Releases are built by GitHub Actions from a tag; nothing is uploaded by hand.
 3. Push the tag:
 
    ```powershell
-   git tag -a v0.2.0 -m "v0.2.0"
-   git push origin v0.2.0
+   git tag -a v0.3.0 -m "v0.3.0"
+   git push origin v0.3.0
    ```
 
 4. `.github/workflows/release.yml` runs `build\build.ps1` on `windows-latest` and

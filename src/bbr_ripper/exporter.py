@@ -27,7 +27,7 @@ def build_profile(
     result: FetchResult,
     decoded: DecodedStats,
     steam_identity: Any,
-    version: str = "0.2.0",
+    version: str = "0.3.0",
 ) -> dict[str, Any]:
     captured = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
     persona = getattr(steam_identity, "persona_name", "") or ""

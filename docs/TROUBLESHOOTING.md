@@ -36,6 +36,11 @@ bbr-ripper-cli --out "C:\Users\me\Documents\BattleBit Stats Ripper" --verbose
 | `BBR-A004` | API HTTP error | Retry. 429/5xx are retried automatically; wait a minute if they persist. |
 | `BBR-A005` | Unexpected token response | The game/API changed. Keep the diagnostics and report the run ID. |
 | `BBR-A006` | Empty/truncated stats response | Retry; if it persists, report the run ID and response size. |
+| `BBR-U001` | Upload URL missing/invalid | Set `BBR_UPLOAD_URL` or `--upload-url`; must be http(s). |
+| `BBR-U002` | Token missing or rejected | Create a new token under Account → Collector tokens. |
+| `BBR-U003` | Token bound to another Steam ID | The capture's Steam ID must match the token's bound ID. |
+| `BBR-U004` | Site rate limit | Wait for the next scheduled run; limit is 10 uploads/hour/account. |
+| `BBR-U005` | Site unreachable or HTTP error | Check the URL, Tailscale, and the site's `/healthz`. |
 | `BBR-D001` | Profile layout changed | The raw bytes are preserved. Update the decoder; report the run ID. |
 | `BBR-X001` | Could not write the output files | Pick a writable folder, close programs locking the file, check disk space. |
 | `BBR-X002` | Unexpected error | Send the diagnostics file with the run ID. |
@@ -100,6 +105,12 @@ Remove-Item "$env:LOCALAPPDATA\BBR Stats Ripper\history.sqlite3" -Force
 Deleting history does not delete the `.bbrstats` files in Documents.
 
 ### Run automatically
+
+See `scripts/install_startup_task.ps1` for a per-user scheduled task, or
+`scripts/run_collector.ps1` for the upload-aware collector loop that starts from
+the Startup folder. The collector reads its token from
+`%LOCALAPPDATA%\BBR Stats Ripper\collector.json` and appends to
+`collector.log`. Upload errors are `BBR-U00x` (see above); the next cycle retries.
 
 ```powershell
 .\scripts\install_startup_task.ps1 -Hours 6

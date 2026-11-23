@@ -520,5 +520,66 @@ class SiteTests(unittest.TestCase):
         db_conn.close()
 
 
+    def test_18_collector_token_upload_and_revoke(self):
+        # Sign in as the local tester account again (test_17 left a Steam session).
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = 1
+            sess["_csrf"] = "test-csrf"
+        page = self.client.get("/me")
+        self.assertEqual(page.status_code, 200)
+        token = csrf(page.get_data(as_text=True))
+        response = self.client.post(
+            "/me/tokens",
+            data={"_csrf": token, "label": "tests", "steam_id": "76561190000000001"},
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        match = re.search(r"bbr_[A-Za-z0-9_-]{20,}", response.get_data(as_text=True))
+        self.assertIsNotNone(match)
+        upload_token = match.group(0)
+
+        db_conn = server.db.connect(server.app.config["DATABASE"])
+        row = db_conn.execute(
+            "SELECT data FROM profiles WHERE steam_id = ?", ("76561190000000001",)
+        ).fetchone()
+        doc = json.loads(row["data"])
+        db_conn.close()
+
+        answer = self.client.post(
+            "/api/captures",
+            json=doc,
+            headers={"Authorization": f"Bearer {upload_token}"},
+        )
+        self.assertEqual(answer.status_code, 200)
+        self.assertTrue(answer.get_json()["ok"])
+
+        wrong = json.loads(json.dumps(doc))
+        wrong["player"]["steam_id"] = "76561190000000002"
+        rejected = self.client.post(
+            "/api/captures",
+            json=wrong,
+            headers={"Authorization": f"Bearer {upload_token}"},
+        )
+        self.assertEqual(rejected.status_code, 403)
+
+        db_conn = server.db.connect(server.app.config["DATABASE"])
+        token_id = db_conn.execute(
+            "SELECT id FROM upload_tokens WHERE label = 'tests'"
+        ).fetchone()["id"]
+        db_conn.close()
+        revoked = self.client.post(
+            f"/me/tokens/{token_id}/revoke",
+            data={"_csrf": token},
+            follow_redirects=True,
+        )
+        self.assertEqual(revoked.status_code, 200)
+        after = self.client.post(
+            "/api/captures",
+            json=doc,
+            headers={"Authorization": f"Bearer {upload_token}"},
+        )
+        self.assertEqual(after.status_code, 401)
+
+
 if __name__ == "__main__":
     unittest.main()

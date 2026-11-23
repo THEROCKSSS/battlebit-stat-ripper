@@ -259,3 +259,35 @@
   .steam-meta { gap: 4px 10px; }
   .players-grid { grid-template-columns: 1fr; }
 }
+
+/* Collector tokens */
+.token-new {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(240, 164, 58, 0.4);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  font-size: 13px;
+}
+.token-value {
+  font-family: var(--font-data);
+  font-size: 12px;
+  word-break: break-all;
+  color: var(--ink);
+}
+.token-form { margin-bottom: 12px; }
+.token-form .form-row { margin-bottom: 10px; }
+.token-list { list-style: none; margin: 0 0 10px; padding: 0; }
+.token-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+.token-row span { display: flex; flex-direction: column; min-width: 0; }
+.token-row small { color: var(--muted); font-size: 11.5px; }
