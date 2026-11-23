@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Bad request — BattleBit Profiles{% endblock %}
+{% block content %}
+<section class="error-page">
+  <p class="kicker">400 / rejected</p>
+  <h1>That request was rejected.</h1>
+  <p class="muted">{{ message }}</p>
+  <div class="error-code">400</div>
+  <a class="button button-ghost" href="{{ url_for('index') }}">Back to the front page</a>
+</section>
+{% endblock %}

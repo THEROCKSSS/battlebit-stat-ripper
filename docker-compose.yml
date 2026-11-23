@@ -1,0 +1,17 @@
+services:
+  profiles:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: bbr-profiles
+    ports:
+      - "127.0.0.1:8099:8099"
+    environment:
+      BBR_SECRET_KEY: ${BBR_SECRET_KEY:?set BBR_SECRET_KEY in .env}
+      BBR_HTTPS: ${BBR_HTTPS:-0}
+    volumes:
+      - bbr-profiles-data:/data
+    restart: unless-stopped
+
+volumes:
+  bbr-profiles-data:

@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Upload a capture — BattleBit Profiles{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="kicker">Capture intake / @{{ current_user['username'] }}</p>
+    <h1>Upload your capture</h1>
+    <p class="muted">Choose the <code>.bbrstats</code> file from the ripper, or paste its JSON. It attaches to your account.</p>
+  </div>
+  <a class="button button-ghost" href="{{ url_for('download') }}">
+    <svg class="icon" aria-hidden="true"><use href="#i-download"></use></svg>
+    Get the ripper
+  </a>
+</div>
+
+<div class="upload-grid">
+  <form class="card upload-form" method="post" action="{{ url_for('upload_post') }}" enctype="multipart/form-data" autocomplete="off">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+    <label class="dropzone" data-dropzone for="file">
+      <input id="file" type="file" name="file" accept=".bbrstats,.json,application/json">
+      <svg class="icon dropzone-icon" aria-hidden="true"><use href="#i-upload"></use></svg>
+      <strong>Drop your .bbrstats file here</strong>
+      <span class="muted">or click to choose a file &middot; max 2 MB</span>
+      <span class="file-name" data-file-name></span>
+    </label>
+
+    <div class="or"><span>or paste the JSON</span></div>
+
+    <label class="field">
+      <span>Profile JSON</span>
+      <textarea name="json" rows="8" placeholder='{"schema":"bbr-profile/1", ...}'></textarea>
+    </label>
+
+    <label class="field">
+      <span>Visibility</span>
+      <select name="visibility">
+        <option value="public" selected>Public &mdash; show on my record and the leaderboard</option>
+        <option value="private">Private &mdash; only I can see it</option>
+      </select>
+    </label>
+
+    <button class="button button-primary wide" type="submit">Upload record</button>
+    <p class="muted small">Limit: 10 uploads per hour per account. Re-uploading the same Steam profile updates it and keeps your avatar, bio, social links, and clan.</p>
+  </form>
+
+  <aside class="upload-aside">
+    <div class="card">
+      <h2>Before you upload</h2>
+      <ul class="check-list">
+        <li>Run the ripper while Steam is open and signed in.</li>
+        <li>The app writes <code>BBR-&lt;name&gt;-&lt;steamid&gt;.bbrstats</code> to your Documents folder.</li>
+        <li>One Steam profile can be linked to one account. Re-uploading updates it.</li>
+        <li>The raw API response is stored with the decoded fields, so the page can improve without a re-rip.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>No file yet?</h2>
+      <p class="muted">Download the Windows ripper, run it once, and come back with the file.</p>
+      <a class="button button-ghost" href="{{ url_for('download') }}">Download the ripper</a>
+    </div>
+    <div class="callout compact">
+      <svg class="icon" aria-hidden="true"><use href="#i-shield"></use></svg>
+      <div>
+        <strong>Your file, your account.</strong>
+        <p>Only the signed-in Steam user's own profile can be captured. The site never asks for your Steam password.</p>
+      </div>
+    </div>
+  </aside>
+</div>
+
+{% endblock %}

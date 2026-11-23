@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% from "_macros.html" import avatar, crest, clan_chip, social_icons %}
+{% block title %}{{ name }} — BattleBit profile{% endblock %}
+{% block content %}
+
+<div class="breadcrumb">
+  <a href="{{ url_for('leaderboard') }}">Leaderboard</a>
+  <span aria-hidden="true">/</span>
+  <span>{{ name }}</span>
+</div>
+
+{% if row['visibility'] == 'private' %}
+  <div class="notice">
+    <svg class="icon" aria-hidden="true"><use href="#i-lock"></use></svg>
+    <span>This record is private. You can see it because you own it; the public link returns 404.</span>
+  </div>
+{% endif %}
+
+<section class="record-head">
+  <div class="record-identity">
+    {{ avatar(avatar_path, name, 'xl') }}
+    <div class="record-copy">
+      <p class="kicker">Service record / {{ data.get('source', {}).get('game_build') or 'BattleBit' }}</p>
+      <h1>{{ name }}</h1>
+      <div class="record-sub">
+        {% if clan %}{{ clan_chip(clan) }}{% endif %}
+        <span class="record-steam">Steam <code>{{ row['steam_id'] }}</code></span>
+        {% if row['display_name'] and row['display_name'] != row['persona_name'] %}
+          <span class="muted">Persona {{ row['persona_name'] }}</span>
+        {% endif %}
+        <span class="verified"><svg class="icon" aria-hidden="true"><use href="#i-shield"></use></svg> Official API capture</span>
+      </div>
+      {% if row['bio'] %}<p class="record-bio">{{ row['bio'] }}</p>{% endif %}
+      {{ social_icons(social_links) }}
+    </div>
+  </div>
+  <div class="record-rank">
+    <span class="rank-label">Rank</span>
+    <strong>{{ p.get('rank', 0)|num }}</strong>
+    <span class="rank-sub">Prestige {{ p.get('prestige', 0) }} &middot; {{ d.get('full_rank', 0)|num }} full</span>
+  </div>
+</section>
+
+{% if is_owner %}
+<div class="owner-bar">
+  <a class="button button-primary small" href="{{ url_for('profile_edit', steam_id=row['steam_id']) }}">
+    <svg class="icon" aria-hidden="true"><use href="#i-edit"></use></svg>
+    Edit record
+  </a>
+  <a class="button button-ghost small" href="{{ url_for('upload') }}">Upload new capture</a>
+  <form method="post" action="{{ url_for('set_visibility', steam_id=row['steam_id']) }}" class="inline-form">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <label for="visibility">Visibility</label>
+    <select id="visibility" name="visibility">
+      <option value="public" {{ 'selected' if row['visibility'] == 'public' else '' }}>Public</option>
+      <option value="private" {{ 'selected' if row['visibility'] == 'private' else '' }}>Private</option>
+    </select>
+    <button class="button button-ghost small" type="submit">Save</button>
+  </form>
+  <form method="post" action="{{ url_for('delete_profile', steam_id=row['steam_id']) }}" class="inline-form"
+        data-confirm="Remove this record from the site? The exported file stays on your PC.">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <button class="link-button danger" type="submit">
+      <svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg>
+      Remove
+    </button>
+  </form>
+</div>
+{% endif %}
+
+<section class="stat-strip" aria-label="Headline stats">
+  <div class="stat-cell">
+    <span>Kills</span>
+    <strong>{{ p.get('kills', 0)|num }}</strong>
+    <small>{{ p.get('headshots', 0)|num }} headshots</small>
+  </div>
+  <div class="stat-cell">
+    <span>K / D</span>
+    <strong>{{ '%.2f'|format(d.get('kd', 0)) }}</strong>
+    <small>{{ p.get('deaths', 0)|num }} deaths</small>
+  </div>
+  <div class="stat-cell">
+    <span>Playtime</span>
+    <strong>{{ '%.1f'|format(d.get('hours_played', 0)) }}<em>h</em></strong>
+    <small>{{ d.get('rounds_played', 0)|num }} rounds</small>
+  </div>
+  <div class="stat-cell">
+    <span>Total score</span>
+    <strong>{{ p.get('total_score', 0)|num }}</strong>
+    <small>{{ '%.1f'|format(d.get('score_per_minute', 0)) }} / min</small>
+  </div>
+</section>
+
+<div class="content-grid">
+  <section class="card">
+    <div class="card-head"><h2>Combat</h2><span class="card-note">lifetime</span></div>
+    <dl class="data-list">
+      <div><dt>Wins / losses</dt><dd>{{ p.get('wins', 0)|num }} / {{ p.get('losses', 0)|num }}</dd></div>
+      <div><dt>Win rate</dt><dd>{{ d.get('win_rate', 0)|pct }}</dd></div>
+      <div><dt>Accuracy</dt><dd>{{ d.get('accuracy', 0)|pct }}</dd></div>
+      <div><dt>Kills / minute</dt><dd>{{ '%.3f'|format(d.get('kills_per_minute', 0)) }}</dd></div>
+      <div><dt>Longest kill</dt><dd>{{ p.get('longest_kill_m', 0)|num }} m</dd></div>
+      <div><dt>Road kills</dt><dd>{{ p.get('road_kills', 0)|num }}</dd></div>
+      <div><dt>Suicides</dt><dd>{{ p.get('suicides', 0)|num }}</dd></div>
+      <div><dt>Friendly kills</dt><dd>{{ p.get('friendly_kills', 0)|num }}</dd></div>
+    </dl>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Support</h2><span class="card-note">lifetime</span></div>
+    <dl class="data-list">
+      <div><dt>Objectives</dt><dd>{{ p.get('objectives_completed', 0)|num }}</dd></div>
+      <div><dt>HP healed</dt><dd>{{ p.get('hp_healed', 0)|num }}</dd></div>
+      <div><dt>Revived</dt><dd>{{ p.get('revived', 0)|num }}</dd></div>
+      <div><dt>Teammates revived</dt><dd>{{ p.get('revived_teammates', 0)|num }}</dd></div>
+      <div><dt>Ammo supplied</dt><dd>{{ p.get('ammo_supplied', 0)|num }}</dd></div>
+      <div><dt>Vehicles destroyed</dt><dd>{{ p.get('vehicles_destroyed', 0)|num }}</dd></div>
+      <div><dt>Vehicle HP repaired</dt><dd>{{ p.get('vehicles_hp_repaired', 0)|num }}</dd></div>
+      <div><dt>Weekly challenges</dt><dd>{{ p.get('weekly_challenges_completed', 0)|num }}</dd></div>
+    </dl>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Progression</h2><span class="card-note">account</span></div>
+    <dl class="data-list">
+      <div><dt>Rank XP</dt><dd>{{ p.get('exp', 0)|num }}</dd></div>
+      <div><dt>Total score</dt><dd>{{ p.get('total_score', 0)|num }}</dd></div>
+      <div><dt>Kills / round</dt><dd>{{ '%.2f'|format(d.get('kills_per_round', 0)) }}</dd></div>
+      <div><dt>Score / round</dt><dd>{{ d.get('score_per_round', 0)|num }}</dd></div>
+      <div><dt>Shots fired</dt><dd>{{ p.get('shots_fired', 0)|num }}</dd></div>
+      <div><dt>Shots hit</dt><dd>{{ p.get('shots_hit', 0)|num }}</dd></div>
+      <div><dt>Assists</dt><dd>{{ p.get('assists', 0)|num }}</dd></div>
+      <div><dt>Achievements</dt><dd>{{ data.get('achievements', [])|length|num }}</dd></div>
+    </dl>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Classes</h2><span class="card-note">score split</span></div>
+    <div class="class-bars">
+      {% for cls_name, c in classes.items() %}
+        <div class="class-row">
+          <div class="class-row-head">
+            <span>{{ cls_name|capitalize }}</span>
+            <span class="muted">{{ c.get('kills', 0)|num }} kills</span>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill" style="width: {{ ((c.get('score', 0) / max_class_score) * 100)|round(1) }}%"></div>
+          </div>
+          <div class="class-row-foot">
+            <span>{{ c.get('score', 0)|num }} score</span>
+            <span class="muted">{{ c.get('playtime_seconds', 0)|hours }}</span>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+<section class="card weapons-card">
+  <div class="card-head">
+    <h2>Top weapons &amp; tools</h2>
+    <span class="card-note">{{ weapons|length }} shown &middot; {{ data.get('weapons', [])|length }} captured</span>
+  </div>
+  {% if weapons %}
+  <div class="weapon-table">
+    <div class="weapon-row weapon-head">
+      <span>#</span><span>Tool</span><span>Kills</span><span>Total</span><span class="weapon-bar-col">Share</span>
+    </div>
+    {% for w in weapons %}
+      <div class="weapon-row">
+        <span class="muted">{{ loop.index }}</span>
+        <span class="weapon-name">{{ w.get('name') or ('Tool #' ~ w.get('tool_id')) }}</span>
+        <span>{{ w.get('kills', 0)|num }}</span>
+        <span>{{ w.get('total', 0)|num }}</span>
+        <span class="weapon-bar-col">
+          <span class="bar-track slim"><span class="bar-fill" style="width: {{ ((w.get('kills', 0) / max_kills) * 100)|round(1) }}%"></span></span>
+        </span>
+      </div>
+    {% endfor %}
+  </div>
+  {% else %}
+    <p class="muted">No per-tool records in this capture.</p>
+  {% endif %}
+</section>
+
+<div class="content-grid two">
+  <section class="card">
+    <div class="card-head"><h2>Clan &amp; account</h2></div>
+    {% if clan %}
+      <a class="clan-line" href="{{ url_for('clan_page', slug=clan['slug']) }}">
+        {{ crest(clan, 'sm') }}
+        <span>
+          <strong>[{{ clan['tag'] }}] {{ clan['name'] }}</strong>
+          <small>{{ clan['member_role']|capitalize }} &middot; view clan roster</small>
+        </span>
+        <svg class="icon" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
+      </a>
+    {% else %}
+      <div class="clan-line muted-line">
+        <svg class="icon" aria-hidden="true"><use href="#i-users"></use></svg>
+        <span><strong>No clan</strong><small><a href="{{ url_for('clans') }}">Find or create one</a></small></span>
+      </div>
+    {% endif %}
+    <dl class="data-list">
+      <div><dt>Banned</dt><dd>{{ 'Yes' if data.get('flags', {}).get('is_banned') else 'No' }}</dd></div>
+      <div><dt>Timed out</dt><dd>{{ 'Yes' if data.get('flags', {}).get('is_timed_out') else 'No' }}</dd></div>
+      <div><dt>Role</dt><dd>{{ data.get('role') if data.get('role') is not none else '—' }}</dd></div>
+      <div><dt>Captured</dt><dd>{{ data.get('captured_at')|date }}</dd></div>
+    </dl>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Share this record</h2></div>
+    {% if row['visibility'] == 'public' %}
+      <p class="muted">Anyone with this link sees the record above. Private records return 404.</p>
+      <div class="copy-row">
+        <input id="share-url" type="text" readonly value="{{ request.url }}">
+        <button class="button button-ghost small" type="button" data-copy-target="share-url">
+          <svg class="icon" aria-hidden="true"><use href="#i-copy"></use></svg>
+          Copy
+        </button>
+      </div>
+    {% else %}
+      <p class="muted">This record is private. Flip visibility to public to share it.</p>
+    {% endif %}
+    <div class="hash-row">
+      <span>Raw SHA-256</span>
+      <code class="hash">{{ data.get('raw', {}).get('sha256', '')[:32] }}…</code>
+    </div>
+    <p class="muted small">
+      Captured with <strong>BattleBit Stat Ripper</strong> from the official
+      <code>/Player/GetStats</code> response. The raw bytes are embedded in the profile file.
+    </p>
+  </section>
+</div>
+
+<details class="raw-card">
+  <summary>Raw profile JSON <span class="muted">(the full decoded capture)</span></summary>
+  <pre>{{ data|tojson(indent=2) }}</pre>
+</details>
+
+{% endblock %}

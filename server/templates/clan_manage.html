@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% from "_macros.html" import avatar, crest %}
+{% block title %}Manage [{{ clan['tag'] }}] {{ clan['name'] }} — BattleBit Profiles{% endblock %}
+{% block content %}
+
+<div class="breadcrumb">
+  <a href="{{ url_for('clans') }}">Clans</a>
+  <span aria-hidden="true">/</span>
+  <a href="{{ url_for('clan_page', slug=clan['slug']) }}">[{{ clan['tag'] }}] {{ clan['name'] }}</a>
+  <span aria-hidden="true">/</span>
+  <span>Manage</span>
+</div>
+
+<div class="page-head">
+  <div>
+    <p class="kicker">Clan management / {{ role }}</p>
+    <h1>Manage the clan</h1>
+    <p class="muted">{{ members|length }} member{{ '' if members|length == 1 else 's' }} &middot; {{ requests|length }} pending request{{ '' if requests|length == 1 else 's' }}</p>
+  </div>
+  <a class="button button-ghost" href="{{ url_for('clan_page', slug=clan['slug']) }}">View public page</a>
+</div>
+
+<div class="manage-layout">
+  <div class="manage-main">
+    {% if is_owner %}
+    <section class="card">
+      <div class="card-head"><h2>Clan settings</h2><span class="card-note">owner only</span></div>
+      <form class="form-card" method="post" action="{{ url_for('clan_settings', slug=clan['slug']) }}" enctype="multipart/form-data" autocomplete="off">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <div class="form-row">
+          <label class="field">
+            <span>Clan name</span>
+            <input type="text" name="name" value="{{ clan['name'] }}" minlength="3" maxlength="40" required>
+          </label>
+          <label class="field field-narrow">
+            <span>Tag</span>
+            <input type="text" name="tag" value="{{ clan['tag'] }}" minlength="2" maxlength="5" required>
+          </label>
+        </div>
+        <label class="field">
+          <span>Description</span>
+          <textarea name="description" rows="4" maxlength="500">{{ clan['description'] }}</textarea>
+        </label>
+        <div class="form-row">
+          <label class="field">
+            <span>Join mode</span>
+            <select name="join_mode">
+              <option value="open" {{ 'selected' if clan['join_mode'] == 'open' else '' }}>Open — anyone can join</option>
+              <option value="request" {{ 'selected' if clan['join_mode'] == 'request' else '' }}>Request — officers approve</option>
+              <option value="closed" {{ 'selected' if clan['join_mode'] == 'closed' else '' }}>Closed — invite only</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Replace crest</span>
+            <input type="file" name="emblem" accept="image/png,image/jpeg,image/webp">
+            <small class="muted">Square works best.</small>
+          </label>
+        </div>
+        {% if clan['emblem_path'] %}
+          <label class="check-row">
+            <input type="checkbox" name="remove_emblem" value="1">
+            <span>Remove the current crest</span>
+          </label>
+        {% endif %}
+        <fieldset class="field color-field">
+          <legend>Crest colour</legend>
+          <div class="color-options">
+            {% for color in colors %}
+              <label class="color-option" style="--swatch: {{ color }}">
+                <input type="radio" name="color" value="{{ color }}" {{ 'checked' if clan['color'] == color else '' }}>
+                <span aria-hidden="true"></span>
+                <em>{{ color }}</em>
+              </label>
+            {% endfor %}
+          </div>
+        </fieldset>
+        <div class="form-divider"><span>Social links</span></div>
+        <div class="form-grid">
+          {% for key, spec in social_specs.items() %}
+            <label class="field">
+              <span>{{ spec.label }}</span>
+              <input type="url" name="social_{{ key }}" value="{{ social_values.get(key, '') }}" placeholder="{{ spec.hint }}" maxlength="300">
+            </label>
+          {% endfor %}
+        </div>
+        <button class="button button-primary" type="submit">Save settings</button>
+      </form>
+    </section>
+    {% endif %}
+
+    <section class="card">
+      <div class="card-head"><h2>Members</h2><span class="card-note">{{ members|length }}</span></div>
+      <div class="manage-list">
+        {% for m in members %}
+        <div class="manage-row">
+          <div class="manage-person">
+            {{ avatar(m.avatar_path, m.display_name or m.persona_name or m.username, 'tiny') }}
+            <span>
+              <strong>{{ m.display_name or m.persona_name or m.username }}</strong>
+              <small>@{{ m.username }} &middot; {{ m.role }} &middot; joined {{ m.joined_at|date }}</small>
+            </span>
+          </div>
+          <div class="manage-actions">
+            {% if is_owner and m.role != 'owner' %}
+              <form method="post" action="{{ url_for('clan_role', slug=clan['slug'], user_id=m.user_id) }}" class="inline-form">
+                <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                <input type="hidden" name="role" value="{{ 'member' if m.role == 'officer' else 'officer' }}">
+                <button class="link-button" type="submit">{{ 'Demote' if m.role == 'officer' else 'Promote' }}</button>
+              </form>
+            {% endif %}
+            {% if m.role != 'owner' and (is_owner or m.role == 'member') %}
+              <form method="post" action="{{ url_for('clan_kick', slug=clan['slug'], user_id=m.user_id) }}" class="inline-form" data-confirm="Remove this member from the clan?">
+                <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                <button class="link-button danger" type="submit">Remove</button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>Join requests</h2><span class="card-note">{{ requests|length }} pending</span></div>
+      {% if requests %}
+      <div class="manage-list">
+        {% for r in requests %}
+        <div class="manage-row">
+          <div class="manage-person">
+            {{ avatar(r.avatar_path, r.display_name or r.persona_name or r.username, 'tiny') }}
+            <span>
+              <strong>{{ r.display_name or r.persona_name or r.username }}</strong>
+              <small>@{{ r.username }} &middot; {{ r.created_at|date }}{% if r.message %} &middot; “{{ r.message }}”{% endif %}</small>
+            </span>
+          </div>
+          <div class="manage-actions">
+            <form method="post" action="{{ url_for('clan_request_action', slug=clan['slug'], request_id=r.id, action='approve') }}" class="inline-form">
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+              <button class="button button-primary small" type="submit">Approve</button>
+            </form>
+            <form method="post" action="{{ url_for('clan_request_action', slug=clan['slug'], request_id=r.id, action='reject') }}" class="inline-form">
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+              <button class="button button-ghost small" type="submit">Decline</button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+        <p class="muted">No pending requests. Share the clan link to bring people in.</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <aside class="manage-aside">
+    <section class="card">
+      <div class="card-head"><h2>Crest</h2></div>
+      <div class="crest-preview">{{ crest(clan, 'xl') }}</div>
+      <p class="muted small">Upload a square image, or let the tag letters carry the crest. The colour is used anywhere the clan appears.</p>
+      <a class="text-link" href="{{ url_for('clan_page', slug=clan['slug']) }}">View public page <svg class="icon" aria-hidden="true"><use href="#i-arrow-right"></use></svg></a>
+    </section>
+
+    {% if is_owner %}
+    <section class="card danger-card">
+      <div class="card-head"><h2>Disband clan</h2></div>
+      <p class="muted">This deletes the clan, its roster, and its pending requests. Member records stay.</p>
+      <form method="post" action="{{ url_for('clan_disband', slug=clan['slug']) }}" data-confirm="Disband this clan permanently?">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <button class="button button-danger" type="submit">Disband clan</button>
+      </form>
+    </section>
+    {% endif %}
+  </aside>
+</div>
+
+{% endblock %}

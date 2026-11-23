@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% from "_macros.html" import avatar, crest, clan_chip %}
+{% block title %}BattleBit Profiles — a portable service record{% endblock %}
+{% block content %}
+
+<section class="masthead">
+  <div class="masthead-copy">
+    <p class="kicker">BattleBit Remastered / player records</p>
+    <h1 aria-label="Carry your record out of the game.">Carry your record<br><span class="headline-accent">out of the game.</span></h1>
+    <p class="lede">
+      Rip your own stats from the official API, keep them in a file you own, and
+      publish a page that survives renames, wipes, and server moves. No screen
+      scraping. No game files touched. No admin.
+    </p>
+    <div class="masthead-actions">
+      <a class="button button-primary" href="{{ url_for('download') }}">
+        <svg class="icon" aria-hidden="true"><use href="#i-download"></use></svg>
+        Download the ripper
+      </a>
+      <a class="button button-ghost" href="{{ url_for('clans') }}">Find a clan</a>
+    </div>
+    <dl class="masthead-facts">
+      <div><dt>Public records</dt><dd>{{ total }}</dd></div>
+      <div><dt>Clans</dt><dd>{{ total_clans }}</dd></div>
+      <div><dt>Tools tracked</dt><dd>76</dd></div>
+    </dl>
+  </div>
+
+  <aside class="download-card" aria-label="Stat ripper download">
+    <div class="download-card-top">
+      <span class="label">Stat ripper</span>
+      <span class="version">v{{ ripper_version }}</span>
+    </div>
+    <h2>Windows app.<br>No install.</h2>
+    <p>Run it once. It writes a <code>.bbrstats</code> file you can upload here or carry anywhere.</p>
+    <a class="button button-primary wide" href="{{ url_for('download') }}">
+      <svg class="icon" aria-hidden="true"><use href="#i-download"></use></svg>
+      Get BattleBitStatRipper.exe
+    </a>
+    <ul class="check-list tight">
+      <li>Reads your own profile only</li>
+      <li>Does not touch the game or EAC</li>
+      <li>Raw API response embedded</li>
+    </ul>
+    <p class="micro">Steam must be signed in. The game can stay closed.</p>
+  </aside>
+</section>
+
+<section class="process" aria-label="How it works">
+  <div class="process-item">
+    <svg class="icon process-icon" aria-hidden="true"><use href="#i-crosshair"></use></svg>
+    <h3>Rip</h3>
+    <p>The app asks Steam for your local auth ticket and pulls your own profile from BattleBit's API.</p>
+  </div>
+  <div class="process-item">
+    <svg class="icon process-icon" aria-hidden="true"><use href="#i-upload"></use></svg>
+    <h3>Upload</h3>
+    <p>Drop the <code>.bbrstats</code> file into your account. The raw response is stored with the decoded fields.</p>
+  </div>
+  <div class="process-item">
+    <svg class="icon process-icon" aria-hidden="true"><use href="#i-link"></use></svg>
+    <h3>Share</h3>
+    <p>Send your profile or clan link. It stays reachable even when public leaderboards rotate.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <div>
+      <p class="kicker">Latest captures</p>
+      <h2>Recently captured</h2>
+    </div>
+    <a class="text-link" href="{{ url_for('leaderboard') }}">All profiles <svg class="icon" aria-hidden="true"><use href="#i-arrow-right"></use></svg></a>
+  </div>
+
+  {% if recent %}
+  <div class="ledger">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Player</th>
+          <th>Clan</th>
+          <th class="num">Rank</th>
+          <th class="num">Kills</th>
+          <th class="num">K/D</th>
+          <th class="num">Hours</th>
+          <th class="num">Captured</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in recent %}
+        <tr>
+          <td>
+            <a class="player-link" href="{{ url_for('profile', steam_id=item.row['steam_id']) }}">
+              {{ avatar(item.avatar, item.persona, 'tiny') }}
+              <span>
+                <strong>{{ item.persona }}</strong>
+                <small>{{ item.row['steam_id'] }}</small>
+              </span>
+            </a>
+          </td>
+          <td>{{ clan_chip(item.clan) }}</td>
+          <td class="num">{{ item.rank|num }}</td>
+          <td class="num">{{ item.kills|num }}</td>
+          <td class="num">{{ '%.2f'|format(item.kd or 0) }}</td>
+          <td class="num">{{ '%.1f'|format(item.hours or 0) }}</td>
+          <td class="num muted">{{ item.row['updated_at']|date }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="callout">
+    <svg class="icon" aria-hidden="true"><use href="#i-info"></use></svg>
+    <div>
+      <strong>No public records yet.</strong>
+      <p>Be the first: rip your stats, create an account, and upload the file. The page is yours from there.</p>
+      <a class="text-link" href="{{ url_for('register') }}">Create an account <svg class="icon" aria-hidden="true"><use href="#i-arrow-right"></use></svg></a>
+    </div>
+  </div>
+  {% endif %}
+</section>
+
+<section class="section clan-section">
+  <div class="clan-intro">
+    <p class="kicker">Clans / groups</p>
+    <h2>Make the name mean something.</h2>
+    <p>
+      Create a clan, choose a tag, and gather your players under one crest.
+      Members bring their own verified records; the clan page rolls them into one
+      roster and one set of totals.
+    </p>
+    <div class="masthead-actions">
+      <a class="button button-primary" href="{{ url_for('clan_new') }}">Create a clan</a>
+      <a class="button button-ghost" href="{{ url_for('clans') }}">Browse clans</a>
+    </div>
+  </div>
+
+  {% if clan_preview %}
+  <div class="clan-preview">
+    {% for item in clan_preview %}
+      <a class="clan-preview-row" href="{{ url_for('clan_page', slug=item.clan['slug']) }}">
+        {{ crest(item.clan, 'sm') }}
+        <span class="clan-preview-name">
+          <strong>[{{ item.clan['tag'] }}] {{ item.clan['name'] }}</strong>
+          <small>{{ item.stats.members }} member{{ '' if item.stats.members == 1 else 's' }} &middot; {{ item.stats.kills|num }} kills</small>
+        </span>
+        <svg class="icon" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
+      </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="callout">
+    <svg class="icon" aria-hidden="true"><use href="#i-users"></use></svg>
+    <div>
+      <strong>No clans yet.</strong>
+      <p>The first clan gets the front page. Pick a tag and stake it.</p>
+    </div>
+  </div>
+  {% endif %}
+</section>
+
+<section class="section spec-section">
+  <div class="spec-copy">
+    <p class="kicker">Source / what is captured</p>
+    <h2>Everything the response contains.</h2>
+    <p class="muted">
+      Kills and deaths, wins and losses, per-class performance, score and playtime,
+      accuracy, headshots, revives, heals, repairs, objectives, vehicles, longest kill,
+      the 76 per-tool records, and the raw bytes.
+    </p>
+    <a class="text-link" href="{{ url_for('download') }}">Read the ripper details <svg class="icon" aria-hidden="true"><use href="#i-arrow-right"></use></svg></a>
+  </div>
+  <dl class="spec-list">
+    <div><dt>Source</dt><dd><code>api.battlebit.cloud /Player/GetStats</code></dd></div>
+    <div><dt>Auth</dt><dd><code>Steam local auth ticket</code></dd></div>
+    <div><dt>File</dt><dd><code>.bbrstats (JSON + raw response)</code></dd></div>
+    <div><dt>Footprint</dt><dd><code>2.5 KB typical</code></dd></div>
+    <div><dt>Ownership</dt><dd>Your file. Your account. Your call.</dd></div>
+  </dl>
+</section>
+
+{% endblock %}

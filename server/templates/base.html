@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#12100d">
+  <title>{% block title %}BattleBit Profiles{% endblock %}</title>
+  <meta name="description" content="Portable BattleBit Remastered player records, clans, and stat pages. Rip your own stats, upload them, and share a page that lasts.">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+{% include "_icons.html" %}
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="{{ url_for('index') }}" aria-label="BattleBit Profiles home">
+      <span class="brand-mark" aria-hidden="true"><span></span></span>
+      <span class="brand-word">BattleBit <span class="brand-accent">Profiles</span></span>
+    </a>
+
+    <nav class="site-nav" aria-label="Main">
+      <a href="{{ url_for('leaderboard') }}" {% if request.endpoint == 'leaderboard' %}aria-current="page"{% endif %}>Leaderboard</a>
+      <a href="{{ url_for('clans') }}" {% if request.endpoint in ('clans', 'clan_page', 'clan_new', 'clan_manage') %}aria-current="page"{% endif %}>Clans</a>
+      <a class="nav-download" href="{{ url_for('download') }}">
+        <svg class="icon" aria-hidden="true"><use href="#i-download"></use></svg>
+        Get the ripper
+      </a>
+      {% if current_user %}
+        <span class="nav-divider" aria-hidden="true"></span>
+        <a class="nav-account" href="{{ url_for('me') }}" {% if request.endpoint in ('me', 'profile_edit') %}aria-current="page"{% endif %}>
+          <svg class="icon" aria-hidden="true"><use href="#i-user"></use></svg>
+          @{{ current_user['username'] }}
+        </a>
+        <form method="post" action="{{ url_for('logout') }}" class="inline-form">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          <button type="submit" class="icon-button" aria-label="Sign out" title="Sign out">
+            <svg class="icon" aria-hidden="true"><use href="#i-logout"></use></svg>
+          </button>
+        </form>
+      {% else %}
+        <a href="{{ url_for('login') }}">Sign in</a>
+        <a class="nav-cta" href="{{ url_for('register') }}">Create account</a>
+      {% endif %}
+    </nav>
+  </div>
+</header>
+
+<main id="main" class="container">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-stack" role="status">
+        {% for category, message in messages %}
+          <div class="flash flash-{{ category }}">
+            <svg class="icon" aria-hidden="true"><use href="#i-{{ 'check' if category == 'ok' else 'alert' if category == 'error' else 'info' }}"></use></svg>
+            <span>{{ message }}</span>
+            <button type="button" class="flash-close" aria-label="Dismiss message">&times;</button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div class="footer-brand">
+      <span class="brand-mark small" aria-hidden="true"><span></span></span>
+      <p><strong>BattleBit Profiles</strong> is a portable service record. Your stats, your clan, your page.</p>
+    </div>
+    <div class="footer-links">
+      <a href="{{ url_for('leaderboard') }}">Leaderboard</a>
+      <a href="{{ url_for('clans') }}">Clans</a>
+      <a href="{{ url_for('download') }}">Ripper</a>
+    </div>
+    <p class="footer-note">Not affiliated with BattleBit Remastered, Steam, or Easy Anti-Cheat. Stats come from the player's own official API response.</p>
+  </div>
+</footer>
+
+<div id="toast-region" class="toast-region" aria-live="polite"></div>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

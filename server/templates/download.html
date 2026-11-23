@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Download the ripper — BattleBit Profiles{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="kicker">Windows release / v{{ version }}</p>
+    <h1>Download the ripper</h1>
+    <p class="muted">A small Windows app that captures your own BattleBit profile and writes a file you own.</p>
+  </div>
+  <a class="button button-ghost" href="{{ url_for('upload') }}">
+    <svg class="icon" aria-hidden="true"><use href="#i-upload"></use></svg>
+    Upload a capture
+  </a>
+</div>
+
+<div class="download-layout">
+  <section class="release-panel">
+    <div class="release-top">
+      <span class="label">BattleBit Stat Ripper</span>
+      <span class="version">v{{ version }} &middot; Windows x64</span>
+    </div>
+    <h2>One run. One file.<br>Your record.</h2>
+    <p class="muted">
+      The app asks your local Steam client for an auth ticket, exchanges it with the
+      official BattleBit API, and writes a portable <code>.bbrstats</code> profile.
+      It reads your own profile only.
+    </p>
+
+    {% if exe %}
+      <a class="button button-primary wide" href="{{ url_for('download_windows') }}" aria-label="Download BattleBitStatRipper.exe">
+        <svg class="icon" aria-hidden="true"><use href="#i-download"></use></svg>
+        Download .exe &middot; {{ exe.size_text }}
+      </a>
+      {% if archive %}
+        <a class="button button-ghost wide" href="{{ url_for('download_zip') }}" aria-label="Download the BattleBitStatRipper zip with docs">
+          <svg class="icon" aria-hidden="true"><use href="#i-download"></use></svg>
+          Download .zip with docs &middot; {{ archive.size_text }}
+        </a>
+      {% endif %}
+      <div class="hash-row">
+        <span>SHA-256</span>
+        <code class="hash" title="{{ exe.sha256 }}">{{ exe.sha256[:24] }}…</code>
+      </div>
+    {% else %}
+      <div class="callout compact">
+        <svg class="icon" aria-hidden="true"><use href="#i-alert"></use></svg>
+        <div>
+          <strong>No build is present on this server.</strong>
+          <p>Build it from the repo with <code>build/build.ps1</code>, then reload this page.</p>
+        </div>
+      </div>
+    {% endif %}
+
+    <ul class="check-list tight">
+      <li>Reads the signed-in Steam user's own profile</li>
+      <li>Does not modify the game, its files, or EAC</li>
+      <li>Does not need administrator rights</li>
+      <li>Writes a JSON profile plus a readable stat sheet</li>
+    </ul>
+  </section>
+
+  <aside class="download-aside">
+    <section class="card">
+      <div class="card-head"><h2>Run it</h2></div>
+      <ol class="run-steps">
+        <li><span>Open Steam and sign in.</span><small>The game can stay closed.</small></li>
+        <li><span>Run <code>BattleBitStatRipper.exe</code>.</span><small>Windows may show a SmartScreen prompt for an unsigned app.</small></li>
+        <li><span>Press <strong>Rip stats</strong>.</span><small>The file lands in <code>Documents\BattleBit Stats Ripper</code>.</small></li>
+        <li><span>Upload the <code>.bbrstats</code> file here.</span><small>It attaches to your account.</small></li>
+      </ol>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>If it stops</h2></div>
+      <dl class="data-list">
+        <div><dt>Steam not running</dt><dd>Start Steam, then retry.</dd></div>
+        <div><dt>Ticket refused</dt><dd>Sign out and back into Steam, then retry.</dd></div>
+        <div><dt>Schema changed</dt><dd>The app keeps the raw response and reports a decode warning.</dd></div>
+        <div><dt>Anything else</dt><dd>Copy the error code and open the diagnostics file from the app.</dd></div>
+      </dl>
+      <p class="muted small">Every run writes <code>%LOCALAPPDATA%\BBR Stats Ripper\logs</code> and a diagnostics report.</p>
+    </section>
+  </aside>
+</div>
+
+<section class="section spec-section">
+  <div class="spec-copy">
+    <p class="kicker">Source / what is captured</p>
+    <h2>The whole profile response.</h2>
+    <p class="muted">
+      The capture includes every field the official API returns, plus the raw bytes.
+      That means the page can improve without asking you to re-rip.
+    </p>
+  </div>
+  <dl class="spec-list">
+    <div><dt>Source</dt><dd><code>api.battlebit.cloud /Player/GetStats</code></dd></div>
+    <div><dt>Auth</dt><dd><code>Steam local auth ticket</code></dd></div>
+    <div><dt>File</dt><dd><code>.bbrstats (JSON + raw base64)</code></dd></div>
+    <div><dt>Size</dt><dd><code>2.5 KB typical</code></dd></div>
+    <div><dt>Network</dt><dd>Only the official BattleBit API and Steam</dd></div>
+  </dl>
+</section>
+
+{% endblock %}

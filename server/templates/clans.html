@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% from "_macros.html" import crest %}
+{% block title %}Clans — BattleBit Profiles{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="kicker">Clan directory / public</p>
+    <h1>Clans</h1>
+    <p class="muted">Tags, crests, rosters, and combined records. Join an open clan or start your own.</p>
+  </div>
+  <a class="button button-primary" href="{{ url_for('clan_new') }}">
+    <svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>
+    Create a clan
+  </a>
+</div>
+
+<div class="toolbar">
+  <form class="search-form" method="get" action="{{ url_for('clans') }}">
+    <svg class="icon" aria-hidden="true"><use href="#i-search"></use></svg>
+    <input type="search" name="q" value="{{ query }}" placeholder="Search clan name or tag" aria-label="Search clans">
+    <button class="button button-ghost small" type="submit">Search</button>
+  </form>
+  <div class="tabs" role="tablist" aria-label="Sort clans">
+    {% for key, label in [('members','Members'), ('kills','Kills'), ('kd','K/D'), ('newest','Newest')] %}
+      <a class="tab {{ 'active' if sort == key else '' }}" href="{{ url_for('clans', sort=key, q=query) }}" {% if sort == key %}aria-current="page"{% endif %}>{{ label }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+{% if items %}
+<div class="ledger">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Clan</th>
+        <th class="num">Members</th>
+        <th class="num">Kills</th>
+        <th class="num">K/D</th>
+        <th class="num">Hours</th>
+        <th>Join</th>
+        <th class="actions-col"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr>
+        <td>
+          <a class="clan-cell" href="{{ url_for('clan_page', slug=item.clan['slug']) }}">
+            {{ crest(item.clan, 'sm') }}
+            <span>
+              <strong>[{{ item.clan['tag'] }}] {{ item.clan['name'] }}</strong>
+              <small>{{ item.clan['description'][:80] or 'No description yet.' }}</small>
+            </span>
+          </a>
+        </td>
+        <td class="num">{{ item.stats.members }}</td>
+        <td class="num">{{ item.stats.kills|num }}</td>
+        <td class="num">{{ '%.2f'|format(item.stats.kd) }}</td>
+        <td class="num">{{ '%.1f'|format(item.stats.hours) }}</td>
+        <td><span class="badge">{{ item.clan['join_mode'] }}</span></td>
+        <td class="actions-cell"><a class="text-link" href="{{ url_for('clan_page', slug=item.clan['slug']) }}">View</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="muted small">Clan totals count public member records only. Private records still count toward membership.</p>
+{% else %}
+<section class="callout">
+  <svg class="icon" aria-hidden="true"><use href="#i-users"></use></svg>
+  <div>
+    <strong>{{ 'No clans match that search.' if query else 'No clans yet.' }}</strong>
+    <p>{{ 'Try a different name or tag.' if query else 'Pick a tag, set a crest, and put your roster on the board.' }}</p>
+    <a class="text-link" href="{{ url_for('clan_new') }}">Create a clan <svg class="icon" aria-hidden="true"><use href="#i-arrow-right"></use></svg></a>
+  </div>
+</section>
+{% endif %}
+
+{% endblock %}

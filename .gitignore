@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.venv/
+buildvenv/
+build/
+dist/
+out/
+packaged-out/
+server/.venv/
+server/data/
+*.bbrstats
+.pytest_cache/
+.env

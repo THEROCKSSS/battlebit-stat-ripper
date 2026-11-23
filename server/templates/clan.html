@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% from "_macros.html" import avatar, crest, social_icons %}
+{% block title %}[{{ clan['tag'] }}] {{ clan['name'] }} — BattleBit clan{% endblock %}
+{% block content %}
+
+<div class="breadcrumb">
+  <a href="{{ url_for('clans') }}">Clans</a>
+  <span aria-hidden="true">/</span>
+  <span>[{{ clan['tag'] }}] {{ clan['name'] }}</span>
+</div>
+
+<section class="clan-head">
+  <div class="clan-identity">
+    {{ crest(clan, 'xl') }}
+    <div class="clan-copy">
+      <p class="kicker">Clan / {{ clan['join_mode'] }} roster</p>
+      <h1><span class="clan-tag-inline">[{{ clan['tag'] }}]</span> {{ clan['name'] }}</h1>
+      {% if clan['description'] %}<p class="clan-description">{{ clan['description'] }}</p>{% endif %}
+      <div class="record-sub">
+        <span>{{ stats.members }} member{{ '' if stats.members == 1 else 's' }}</span>
+        <span class="dot" aria-hidden="true"></span>
+        <span>Founded {{ clan['created_at']|date }}</span>
+        {% if role %}<span class="badge">{{ role }}</span>{% endif %}
+      </div>
+      {{ social_icons(social_links) }}
+    </div>
+  </div>
+
+  <div class="clan-actions">
+    {% if role %}
+      <a class="button button-ghost small" href="{{ url_for('me') }}">Your account</a>
+      {% if can_manage %}
+        <a class="button button-primary small" href="{{ url_for('clan_manage', slug=clan['slug']) }}">
+          <svg class="icon" aria-hidden="true"><use href="#i-edit"></use></svg>
+          Manage clan
+        </a>
+      {% endif %}
+      <form method="post" action="{{ url_for('clan_leave', slug=clan['slug']) }}" data-confirm="Leave this clan?">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <button class="button button-ghost small" type="submit">Leave clan</button>
+      </form>
+    {% elif pending %}
+      <div class="notice compact">
+        <svg class="icon" aria-hidden="true"><use href="#i-clock"></use></svg>
+        <span>Join request pending. An officer will review it.</span>
+      </div>
+    {% elif current_user %}
+      {% if clan['join_mode'] == 'open' %}
+        <form method="post" action="{{ url_for('clan_join', slug=clan['slug']) }}">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          <button class="button button-primary" type="submit">
+            <svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>
+            Join clan
+          </button>
+        </form>
+      {% elif clan['join_mode'] == 'request' %}
+        <form class="join-request" method="post" action="{{ url_for('clan_join', slug=clan['slug']) }}">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          <label class="field">
+            <span>Message to officers <small class="muted">(optional)</small></span>
+            <input type="text" name="message" maxlength="200" placeholder="Why you want in">
+          </label>
+          <button class="button button-primary" type="submit">Request to join</button>
+        </form>
+      {% else %}
+        <p class="muted small">This clan is closed to new members.</p>
+      {% endif %}
+    {% else %}
+      <a class="button button-primary" href="{{ url_for('login', next=request.path) }}">Sign in to join</a>
+    {% endif %}
+  </div>
+</section>
+
+<section class="stat-strip" aria-label="Clan totals">
+  <div class="stat-cell">
+    <span>Members</span>
+    <strong>{{ stats.members }}</strong>
+    <small>{{ stats.counted }} with public records</small>
+  </div>
+  <div class="stat-cell">
+    <span>Kills</span>
+    <strong>{{ stats.kills|num }}</strong>
+    <small>{{ stats.deaths|num }} deaths</small>
+  </div>
+  <div class="stat-cell">
+    <span>K / D</span>
+    <strong>{{ '%.2f'|format(stats.kd) }}</strong>
+    <small>combined public records</small>
+  </div>
+  <div class="stat-cell">
+    <span>Hours</span>
+    <strong>{{ '%.1f'|format(stats.hours) }}</strong>
+    <small>combined playtime</small>
+  </div>
+</section>
+
+<div class="content-grid two">
+  <section class="card">
+    <div class="card-head"><h2>Roster</h2><span class="card-note">{{ members|length }} listed</span></div>
+    {% if members %}
+    <div class="roster">
+      {% for m in members %}
+        <div class="roster-row">
+          <div class="roster-player">
+            {% if m.steam_id and m.visibility == 'public' %}
+              <a class="player-link" href="{{ url_for('profile', steam_id=m.steam_id) }}">
+                {{ avatar(m.avatar_path, m.display_name or m.persona_name or m.username, 'tiny') }}
+                <span>
+                  <strong>{{ m.display_name or m.persona_name or m.username }}</strong>
+                  <small>{{ m.persona_name or 'No Steam record' }}</small>
+                </span>
+              </a>
+            {% else %}
+              <div class="player-link">
+                {{ avatar(m.avatar_path, m.display_name or m.persona_name or m.username, 'tiny') }}
+                <span>
+                  <strong>{{ m.display_name or m.persona_name or m.username }}</strong>
+                  <small>{{ 'Private record' if m.steam_id else 'No Steam record linked' }}</small>
+                </span>
+              </div>
+            {% endif %}
+          </div>
+          <span class="badge">{{ m.role }}</span>
+        </div>
+      {% endfor %}
+    </div>
+    {% else %}
+      <p class="muted">No members yet. That will not last long.</p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Clan record</h2></div>
+    <dl class="data-list">
+      <div><dt>Tag</dt><dd>[{{ clan['tag'] }}]</dd></div>
+      <div><dt>Join mode</dt><dd>{{ clan['join_mode'] }}</dd></div>
+      <div><dt>Founded</dt><dd>{{ clan['created_at']|date }}</dd></div>
+      <div><dt>Total score</dt><dd>{{ stats.score|num }}</dd></div>
+      <div><dt>Combined hours</dt><dd>{{ '%.1f'|format(stats.hours) }}</dd></div>
+      <div><dt>Owner</dt><dd>
+        {% for m in members if m.role == 'owner' %}{{ m.display_name or m.persona_name or m.username }}{% endfor %}
+      </dd></div>
+    </dl>
+    <p class="muted small">Totals include public member records only. The roster includes every member.</p>
+  </section>
+</div>
+
+{% if can_manage and requests %}
+<section class="section">
+  <div class="section-head">
+    <div><p class="kicker">Officer queue</p><h2>Join requests</h2></div>
+    <span class="muted small">{{ requests|length }} pending</span>
+  </div>
+  <div class="ledger">
+    <table class="data-table">
+      <thead><tr><th>Player</th><th>Message</th><th class="num">Requested</th><th class="actions-col">Actions</th></tr></thead>
+      <tbody>
+        {% for r in requests %}
+        <tr>
+          <td class="player-link">
+            {{ avatar(r.avatar_path, r.display_name or r.persona_name or r.username, 'tiny') }}
+            <span><strong>{{ r.display_name or r.persona_name or r.username }}</strong><small>@{{ r.username }}</small></span>
+          </td>
+          <td class="muted">{{ r.message or '—' }}</td>
+          <td class="num muted">{{ r.created_at|date }}</td>
+          <td class="actions-cell">
+            <form method="post" action="{{ url_for('clan_request_action', slug=clan['slug'], request_id=r.id, action='approve') }}" class="inline-form">
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+              <button class="link-button" type="submit">Approve</button>
+            </form>
+            <form method="post" action="{{ url_for('clan_request_action', slug=clan['slug'], request_id=r.id, action='reject') }}" class="inline-form">
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+              <button class="link-button danger" type="submit">Decline</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Slow down — BattleBit Profiles{% endblock %}
+{% block content %}
+<section class="error-page">
+  <p class="kicker">Rate limit</p>
+  <h1>That was a little fast.</h1>
+  <p class="muted">
+    This action is limited to keep the site usable. Try again in
+    <strong>{{ ((retry | int) // 60) + 1 }} minute{{ '' if ((retry | int) // 60) + 1 == 1 else 's' }}</strong>.
+  </p>
+  <div class="error-code">429 &middot; {{ scope }}</div>
+  <div class="masthead-actions">
+    <a class="button button-primary" href="{{ url_for('index') }}">Back to the front page</a>
+    <a class="button button-ghost" href="{{ url_for('clans') }}">Browse clans</a>
+  </div>
+</section>
+{% endblock %}

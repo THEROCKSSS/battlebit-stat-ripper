@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% from "_macros.html" import avatar %}
+{% block title %}Edit {{ row['persona_name'] }} — BattleBit Profiles{% endblock %}
+{% block content %}
+
+<div class="breadcrumb">
+  <a href="{{ url_for('me') }}">Account</a>
+  <span aria-hidden="true">/</span>
+  <a href="{{ url_for('profile', steam_id=row['steam_id']) }}">{{ row['display_name'] or row['persona_name'] }}</a>
+  <span aria-hidden="true">/</span>
+  <span>Edit</span>
+</div>
+
+<div class="page-head">
+  <div>
+    <p class="kicker">Record presentation / owner only</p>
+    <h1>Edit record</h1>
+    <p class="muted">Portrait, display name, bio, social links, and visibility. The stats themselves stay untouched.</p>
+  </div>
+  <a class="button button-ghost" href="{{ url_for('profile', steam_id=row['steam_id']) }}">View record</a>
+</div>
+
+<div class="form-layout">
+  <form class="card form-card" method="post" action="{{ url_for('profile_edit', steam_id=row['steam_id']) }}" enctype="multipart/form-data" autocomplete="off">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+    <div class="avatar-edit">
+      <div class="avatar-preview" data-avatar-preview>
+        {{ avatar(row['avatar_path'], form.display_name or row['persona_name'], 'xl') }}
+      </div>
+      <div class="avatar-edit-copy">
+        <label class="field">
+          <span>Portrait image</span>
+          <input type="file" name="avatar" accept="image/png,image/jpeg,image/webp" data-image-input>
+          <small class="muted">PNG, JPEG, or WebP. Cropped square, re-encoded to WebP, max 6 MB.</small>
+        </label>
+        {% if row['avatar_path'] %}
+          <label class="check-row">
+            <input type="checkbox" name="remove_avatar" value="1">
+            <span>Remove the current portrait</span>
+          </label>
+        {% endif %}
+        {% if avatar_error %}<p class="form-error">{{ avatar_error }}</p>{% endif %}
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label class="field">
+        <span>Display name <small class="muted">(optional)</small></span>
+        <input type="text" name="display_name" value="{{ form.display_name }}" maxlength="32" placeholder="{{ row['persona_name'] }}">
+        <small class="muted">Leave blank to use the Steam persona. 32 characters max.</small>
+      </label>
+      <label class="field">
+        <span>Visibility</span>
+        <select name="visibility">
+          <option value="public" {{ 'selected' if row['visibility'] == 'public' else '' }}>Public — listed and shareable</option>
+          <option value="private" {{ 'selected' if row['visibility'] == 'private' else '' }}>Private — owner only</option>
+        </select>
+      </label>
+    </div>
+
+    <label class="field">
+      <span>Bio <small class="muted">(optional)</small></span>
+      <textarea name="bio" rows="3" maxlength="280" data-counter>{{ form.bio }}</textarea>
+      <small class="muted"><span data-counter-output>0</span>/280 characters</small>
+    </label>
+
+    <div class="form-divider"><span>Social links</span></div>
+    <div class="form-grid">
+      {% for key, spec in social_specs.items() %}
+        <label class="field">
+          <span>{{ spec.label }} <small class="muted">(optional)</small></span>
+          <input type="url" name="social_{{ key }}" value="{{ social_values.get(key, '') }}" placeholder="{{ spec.hint }}" maxlength="300">
+        </label>
+      {% endfor %}
+    </div>
+
+    <div class="form-actions">
+      <button class="button button-primary" type="submit">Save record</button>
+      <a class="button button-ghost" href="{{ url_for('profile', steam_id=row['steam_id']) }}">Cancel</a>
+    </div>
+  </form>
+
+  <aside class="form-aside">
+    <section class="card">
+      <div class="card-head"><h2>How it appears</h2></div>
+      <div class="mini-record">
+        {{ avatar(row['avatar_path'], form.display_name or row['persona_name'], 'lg') }}
+        <div>
+          <strong>{{ form.display_name or row['persona_name'] }}</strong>
+          <small>Steam {{ row['steam_id'] }}</small>
+        </div>
+      </div>
+      <p class="muted small">The portrait appears on your record, the leaderboard, the clan roster, and your account page. The display name is site-only; the Steam persona stays visible as the source.</p>
+    </section>
+    <section class="card">
+      <div class="card-head"><h2>Rate limit</h2></div>
+      <p class="muted">Profile edits are limited to 20 per hour per account. Image uploads are re-encoded and stripped of metadata.</p>
+    </section>
+    <section class="callout compact">
+      <svg class="icon" aria-hidden="true"><use href="#i-image"></use></svg>
+      <div>
+        <strong>Use an image you own.</strong>
+        <p>Do not upload someone else's portrait or a file you cannot share.</p>
+      </div>
+    </section>
+  </aside>
+</div>
+
+{% endblock %}

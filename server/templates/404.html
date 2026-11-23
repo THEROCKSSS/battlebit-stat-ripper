@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Not found — BattleBit Profiles{% endblock %}
+{% block content %}
+<section class="error-page">
+  <p class="kicker">404 / not found</p>
+  <h1>No record here.</h1>
+  <p class="muted">The link may be wrong, the record may be private, or it was removed.</p>
+  <div class="error-code">404</div>
+  <a class="button button-ghost" href="{{ url_for('index') }}">Back to the front page</a>
+</section>
+{% endblock %}

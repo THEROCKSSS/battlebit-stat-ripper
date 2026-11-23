@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Create a clan — BattleBit Profiles{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="kicker">Clan founding / one per account</p>
+    <h1>Create a clan</h1>
+    <p class="muted">Pick a tag, set a crest, and make the roster official. You become the owner.</p>
+  </div>
+  <a class="button button-ghost" href="{{ url_for('clans') }}">Browse clans</a>
+</div>
+
+{% if existing %}
+<div class="notice">
+  <svg class="icon" aria-hidden="true"><use href="#i-info"></use></svg>
+  <span>You are already in <a href="{{ url_for('clan_page', slug=existing['slug']) }}">[{{ existing['tag'] }}] {{ existing['name'] }}</a>. Leave it before creating another clan.</span>
+</div>
+{% endif %}
+
+<div class="form-layout">
+  <form class="card form-card" method="post" action="{{ url_for('clan_new') }}" enctype="multipart/form-data" autocomplete="off">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+    <div class="form-row">
+      <label class="field">
+        <span>Clan name</span>
+        <input type="text" name="name" value="{{ form.name }}" maxlength="40" minlength="3" required placeholder="Night Shift">
+        <small class="muted">3–40 characters. Shown with the tag.</small>
+      </label>
+      <label class="field field-narrow">
+        <span>Tag</span>
+        <input type="text" name="tag" value="{{ form.tag }}" maxlength="5" minlength="2" required placeholder="NTS" autocomplete="off" spellcheck="false">
+        <small class="muted">2–5 letters or numbers.</small>
+      </label>
+    </div>
+
+    <label class="field">
+      <span>Description <small class="muted">(optional)</small></span>
+      <textarea name="description" rows="4" maxlength="500" placeholder="Who you are, when you play, what you play for.">{{ form.description }}</textarea>
+    </label>
+
+    <div class="form-row">
+      <label class="field">
+        <span>Join mode</span>
+        <select name="join_mode">
+          <option value="open" {{ 'selected' if form.join_mode == 'open' else '' }}>Open — anyone can join</option>
+          <option value="request" {{ 'selected' if form.join_mode == 'request' else '' }}>Request — officers approve</option>
+          <option value="closed" {{ 'selected' if form.join_mode == 'closed' else '' }}>Closed — invite only</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Crest image <small class="muted">(optional)</small></span>
+        <input type="file" name="emblem" accept="image/png,image/jpeg,image/webp">
+        <small class="muted">Square works best. Re-encoded to WebP.</small>
+      </label>
+    </div>
+
+    <fieldset class="field color-field">
+      <legend>Crest colour</legend>
+      <div class="color-options">
+        {% for color in colors %}
+          <label class="color-option" style="--swatch: {{ color }}">
+            <input type="radio" name="color" value="{{ color }}" {{ 'checked' if form.color == color else '' }}>
+            <span aria-hidden="true"></span>
+            <em>{{ color }}</em>
+          </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+
+    <div class="form-divider"><span>Social links</span></div>
+    <div class="form-grid">
+      {% for key, spec in social_specs.items() %}
+        <label class="field">
+          <span>{{ spec.label }}</span>
+          <input type="url" name="social_{{ key }}" value="{{ social_values.get(key, '') }}" placeholder="{{ spec.hint }}" maxlength="300">
+        </label>
+      {% endfor %}
+    </div>
+
+    <button class="button button-primary" type="submit">Create clan</button>
+  </form>
+
+  <aside class="form-aside">
+    <section class="card">
+      <div class="card-head"><h2>What the clan gets</h2></div>
+      <ul class="check-list">
+        <li>A public page at <code>/c/&lt;slug&gt;</code> with a crest, tag, description, and socials.</li>
+        <li>A combined record: members, kills, K/D, score, and hours from public profiles.</li>
+        <li>A roster that links each member to their own verified record.</li>
+        <li>Join modes: open, request, or closed.</li>
+      </ul>
+    </section>
+    <section class="card">
+      <div class="card-head"><h2>Rate limit</h2></div>
+      <p class="muted">Clan creation is limited to 3 per account per day. One clan per account at a time.</p>
+    </section>
+    <section class="callout compact">
+      <svg class="icon" aria-hidden="true"><use href="#i-shield"></use></svg>
+      <div>
+        <strong>Keep it real.</strong>
+        <p>Use a tag you can keep. Tags are unique and case-insensitive.</p>
+      </div>
+    </section>
+  </aside>
+</div>
+
+{% endblock %}

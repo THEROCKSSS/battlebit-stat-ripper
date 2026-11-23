@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% from "_macros.html" import avatar, crest, clan_chip %}
+{% block title %}@{{ current_user['username'] }} — BattleBit Profiles{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="kicker">Account / service records</p>
+    <h1>@{{ current_user['username'] }}</h1>
+    <p class="muted">Member since {{ current_user['created_at']|date }} &middot; {{ profiles|length }} linked record{{ '' if profiles|length == 1 else 's' }}</p>
+  </div>
+  <div class="page-actions">
+    <a class="button button-primary" href="{{ url_for('upload') }}">
+      <svg class="icon" aria-hidden="true"><use href="#i-upload"></use></svg>
+      Upload a capture
+    </a>
+    <a class="button button-ghost" href="{{ url_for('download') }}">Get the ripper</a>
+  </div>
+</div>
+
+<div class="account-layout">
+  <div class="account-main">
+    {% if profiles %}
+    <div class="ledger">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Player</th>
+            <th>Clan</th>
+            <th class="num">Rank</th>
+            <th class="num">Kills</th>
+            <th class="num">K/D</th>
+            <th>Visibility</th>
+            <th class="actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in profiles %}
+          <tr>
+            <td>
+              <a class="player-link" href="{{ url_for('profile', steam_id=item.row['steam_id']) }}">
+                {{ avatar(item.avatar, item.persona, 'tiny') }}
+                <span>
+                  <strong>{{ item.persona }}</strong>
+                  <small>{{ item.row['steam_id'] }}</small>
+                </span>
+              </a>
+            </td>
+            <td>{{ clan_chip(item.clan) }}</td>
+            <td class="num">{{ item.rank|num }}</td>
+            <td class="num">{{ item.kills|num }}</td>
+            <td class="num">{{ '%.2f'|format(item.kd or 0) }}</td>
+            <td>
+              <span class="badge {{ 'badge-public' if item.row['visibility'] == 'public' else 'badge-private' }}">
+                {{ item.row['visibility'] }}
+              </span>
+            </td>
+            <td class="actions-cell">
+              <a class="text-link" href="{{ url_for('profile_edit', steam_id=item.row['steam_id']) }}">Edit</a>
+              <a class="text-link" href="{{ url_for('profile', steam_id=item.row['steam_id']) }}">View</a>
+              <form method="post" action="{{ url_for('set_visibility', steam_id=item.row['steam_id']) }}" class="inline-form">
+                <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                <input type="hidden" name="visibility" value="{{ 'private' if item.row['visibility'] == 'public' else 'public' }}">
+                <button class="link-button" type="submit">Make {{ 'private' if item.row['visibility'] == 'public' else 'public' }}</button>
+              </form>
+              <form method="post" action="{{ url_for('delete_profile', steam_id=item.row['steam_id']) }}" class="inline-form"
+                    data-confirm="Remove this record from the site? The exported file stays on your PC.">
+                <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                <button class="link-button danger" type="submit">Remove</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <section class="callout">
+      <svg class="icon" aria-hidden="true"><use href="#i-upload"></use></svg>
+      <div>
+        <strong>No record linked yet.</strong>
+        <p>Run the ripper, then upload the <code>.bbrstats</code> file it writes. It attaches to this account.</p>
+        <a class="text-link" href="{{ url_for('upload') }}">Upload a capture <svg class="icon" aria-hidden="true"><use href="#i-arrow-right"></use></svg></a>
+      </div>
+    </section>
+    {% endif %}
+
+    <div class="card account-note">
+      <div class="card-head"><h2>How linking works</h2></div>
+      <p class="muted">
+        A Steam profile can be claimed by one account. Re-uploading updates the same
+        record and keeps its avatar, bio, social links, and clan. Uploading a different
+        Steam profile adds a second record to this account.
+      </p>
+    </div>
+  </div>
+
+  <aside class="account-aside">
+    <section class="card">
+      <div class="card-head"><h2>Clan</h2></div>
+      {% if clan %}
+        <a class="clan-line" href="{{ url_for('clan_page', slug=clan['slug']) }}">
+          {{ crest(clan, 'md') }}
+          <span>
+            <strong>[{{ clan['tag'] }}] {{ clan['name'] }}</strong>
+            <small>{{ clan['member_role']|capitalize }}</small>
+          </span>
+        </a>
+        <div class="stack-actions">
+          <a class="button button-ghost small" href="{{ url_for('clan_page', slug=clan['slug']) }}">View clan</a>
+          {% if clan['member_role'] in ('owner', 'officer') %}
+            <a class="button button-ghost small" href="{{ url_for('clan_manage', slug=clan['slug']) }}">Manage</a>
+          {% endif %}
+        </div>
+      {% else %}
+        <p class="muted">You are not in a clan. Create one or join an open roster.</p>
+        <div class="stack-actions">
+          <a class="button button-primary small" href="{{ url_for('clan_new') }}">Create a clan</a>
+          <a class="button button-ghost small" href="{{ url_for('clans') }}">Browse clans</a>
+        </div>
+      {% endif %}
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>Ripper</h2><span class="card-note">v{{ ripper_version }}</span></div>
+      <p class="muted">Need a fresh capture? Run the Windows app while Steam is signed in.</p>
+      <div class="stack-actions">
+        <a class="button button-primary small" href="{{ url_for('download') }}">Download ripper</a>
+        <a class="button button-ghost small" href="{{ url_for('upload') }}">Upload capture</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>Account</h2></div>
+      <dl class="data-list">
+        <div><dt>Username</dt><dd>@{{ current_user['username'] }}</dd></div>
+        <div><dt>Joined</dt><dd>{{ current_user['created_at']|date }}</dd></div>
+        <div><dt>Records</dt><dd>{{ profiles|length }}</dd></div>
+      </dl>
+    </section>
+  </aside>
+</div>
+
+{% endblock %}

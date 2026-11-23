@@ -1,0 +1,32 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    name: build windows executables
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: astral-sh/setup-uv@v6
+      - name: Build executables and zip
+        shell: pwsh
+        run: ./build/build.ps1
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/BattleBitStatRipper.exe
+            dist/bbr-ripper-cli.exe
+            dist/BattleBitStatRipper-windows-x64.zip
+          generate_release_notes: true
+          fail_on_unmatched_files: true

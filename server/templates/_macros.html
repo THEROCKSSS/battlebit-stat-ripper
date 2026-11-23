@@ -1,0 +1,39 @@
+{% macro avatar(path, name, size='md', alt='') -%}
+  {% if path %}
+    <img class="avatar avatar-{{ size }}" src="{{ url_for('media_file', kind='avatars', filename=path) }}" alt="{{ alt or (name ~ ' portrait') }}" width="512" height="512" loading="lazy">
+  {% else %}
+    <span class="avatar avatar-{{ size }}" aria-hidden="true">{{ (name or '?')[:1]|upper }}</span>
+  {% endif %}
+{%- endmacro %}
+
+{% macro crest(clan, size='md') -%}
+  <span class="crest crest-{{ size }}" style="--clan-color: {{ clan['color'] }}">
+    {% if clan['emblem_path'] %}
+      <img src="{{ url_for('media_file', kind='clans', filename=clan['emblem_path']) }}" alt="" width="512" height="512" loading="lazy">
+    {% else %}
+      {{ clan['tag'][:2] }}
+    {% endif %}
+  </span>
+{%- endmacro %}
+
+{% macro clan_chip(clan) -%}
+  {% if clan %}
+    <a class="clan-chip" href="{{ url_for('clan_page', slug=clan['slug']) }}" style="--clan-color: {{ clan['color'] }}">
+      <span class="clan-chip-mark" aria-hidden="true"></span>
+      <span>[{{ clan['tag'] }}]</span>
+    </a>
+  {% endif %}
+{%- endmacro %}
+
+{% macro social_icons(links, compact=false) -%}
+  {% if links %}
+    <div class="social-row{{ ' compact' if compact else '' }}">
+      {% for link in links %}
+        <a class="social-link" href="{{ link.url }}" target="_blank" rel="noopener noreferrer nofollow" title="{{ link.label }}">
+          <svg class="icon" aria-hidden="true"><use href="#i-{{ link.icon }}"></use></svg>
+          {% if not compact %}<span>{{ link.label }}</span>{% endif %}
+        </a>
+      {% endfor %}
+    </div>
+  {% endif %}
+{%- endmacro %}

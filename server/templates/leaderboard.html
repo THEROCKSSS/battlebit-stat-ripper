@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% from "_macros.html" import avatar, clan_chip %}
+{% block title %}Leaderboard — BattleBit Profiles{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="kicker">Public records / sorted</p>
+    <h1>Leaderboard</h1>
+    <p class="muted">Every public record, ranked by the column you choose. Private records stay out.</p>
+  </div>
+  <div class="tabs" role="tablist" aria-label="Sort leaderboard">
+    {% for key, label in [('kills','Kills'), ('kd','K/D'), ('score','Score'), ('rank','Rank'), ('hours','Hours')] %}
+      <a class="tab {{ 'active' if sort == key else '' }}" href="{{ url_for('leaderboard', sort=key) }}" {% if sort == key %}aria-current="page"{% endif %}>{{ label }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+{% if entries %}
+<div class="ledger">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th class="col-rank">#</th>
+        <th>Player</th>
+        <th>Clan</th>
+        <th class="num">Kills</th>
+        <th class="num">K/D</th>
+        <th class="num">Score</th>
+        <th class="num">Rank</th>
+        <th class="num">Hours</th>
+        <th class="num">Updated</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in entries %}
+      <tr>
+        <td class="col-rank muted">{{ loop.index }}</td>
+        <td>
+          <a class="player-link" href="{{ url_for('profile', steam_id=e.steam_id) }}">
+            {{ avatar(e.avatar, e.persona, 'tiny') }}
+            <span>
+              <strong>{{ e.persona }}</strong>
+              <small>{{ e.steam_id }}</small>
+            </span>
+          </a>
+        </td>
+        <td>{{ clan_chip(e.clan) }}</td>
+        <td class="num">{{ e.kills|num }}</td>
+        <td class="num">{{ '%.2f'|format(e.kd or 0) }}</td>
+        <td class="num">{{ e.score|num }}</td>
+        <td class="num">{{ e.rank|num }}</td>
+        <td class="num">{{ '%.1f'|format(e.hours or 0) }}</td>
+        <td class="num muted">{{ e.updated_at|date }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="muted small">Only public records appear here. Private records remain reachable by their owner.</p>
+{% else %}
+<section class="callout">
+  <svg class="icon" aria-hidden="true"><use href="#i-chart"></use></svg>
+  <div>
+    <strong>No public records yet.</strong>
+    <p>Rip your stats and be the first name on the board.</p>
+    <a class="text-link" href="{{ url_for('download') }}">Get the ripper <svg class="icon" aria-hidden="true"><use href="#i-arrow-right"></use></svg></a>
+  </div>
+</section>
+{% endif %}
+
+{% endblock %}
