@@ -39,8 +39,9 @@ profile screen:
 
 ## Use the GUI
 
-Download `BattleBitStatRipper.exe` from the site's **Download** page, or build it
-(see below). Double-click it and press **Rip my stats**.
+Download `BattleBitStatRipper.exe` from the site's **Download** page or the
+[latest GitHub release](https://github.com/THEROCKSSS/battlebit-stat-ripper/releases/latest),
+or build it (see below). Double-click it and press **Rip my stats**.
 
 The app writes two files to `Documents\BattleBit Stats Ripper\`:
 

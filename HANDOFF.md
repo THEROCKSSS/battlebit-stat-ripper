@@ -24,6 +24,12 @@ Working, locally verified:
 - **Private remote access** — Tailscale Serve publishes the site at
   `https://owens-pc-vpn.tailff2683.ts.net:8552` (tailnet only) proxying
   `http://127.0.0.1:8099`; verified over the tailnet URL on 2026-11-23.
+- **Public repo + CI** — `https://github.com/THEROCKSSS/battlebit-stat-ripper`
+  (MIT). GitHub Actions runs the ripper suite on Windows and the server suite on
+  Linux for every push/PR; `.github/workflows/release.yml` builds the exes on a
+  `v*` tag and attaches them to the release.
+- **v0.2.0 release published** — three assets built by CI; the downloaded CLI
+  reports `bbr-ripper 0.2.0` and the zip lists the expected 8 files.
 - **Site feature pass** — clans (directory, create, open/request/closed join,
   roster, aggregate public stats, crests, socials, requests, promote/kick,
   leave/disband), profile portraits/bios/socials, inline SVG icon set, rate
@@ -99,10 +105,11 @@ build\build.ps1
 
 ## Next
 
-1. Decide where the site lives (new Forgejo repo / existing battlebit-stats /
-   arsenal page). Tailscale Serve deployment is done; public hosting is opt-in.
-2. Publish `BattleBitStatRipper.exe` as a GitHub/Forgejo release; link it from the
-   arsenal page and the site's download page.
+1. Decide whether the site gets a public URL (opt-in). The code now lives at
+   `github.com/THEROCKSSS/battlebit-stat-ripper`; tailnet access is already live.
+2. Link the release from `familiar/battlebit-arsenal` on Forgejo (separate repo,
+   needs its own write). The site's `/download` page already links to GitHub
+   Releases.
 3. Optional polish: signed Windows binary, auto-update check, a direct "upload to
    site" button in the GUI (needs an API key/session design), history chart in the
    GUI.
