@@ -2,7 +2,8 @@ __pycache__/
 *.py[cod]
 .venv/
 buildvenv/
-build/
+build/*
+!build/build.ps1
 dist/
 out/
 packaged-out/

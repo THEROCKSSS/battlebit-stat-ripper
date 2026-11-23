@@ -20,7 +20,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - name: Build executables and zip
         shell: pwsh
-        run: ./build/build.ps1
+        run: "& ./build/build.ps1"
       - name: Publish release assets
         uses: softprops/action-gh-release@v2
         with:
