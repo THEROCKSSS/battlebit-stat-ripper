@@ -1,6 +1,7 @@
 import io
 import json
 import os
+import pathlib
 import re
 import tempfile
 import unittest
@@ -378,14 +379,35 @@ class SiteTests(unittest.TestCase):
         conn.close()
 
     def test_13_download_routes(self):
-        page = self.client.get("/download")
-        self.assertEqual(page.status_code, 200)
-        self.assertIn(b"BattleBitStatRipper", page.data)
-        self.assertIn(b"SHA-256", page.data)
-        binary = self.client.get("/download/windows")
-        self.assertEqual(binary.status_code, 200)
-        self.assertGreater(len(binary.data), 1_000_000)
-        binary.close()
+        # Deterministic whether or not a build exists next to the repo: point the
+        # download paths at a temp dir and exercise both states.
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = pathlib.Path(tmp)
+            old_exe, old_zip = server.DOWNLOAD_PATH, server.ZIP_PATH
+            try:
+                server.DOWNLOAD_PATH = tmp_path / "missing.exe"
+                server.ZIP_PATH = tmp_path / "missing.zip"
+                server.app.config.pop("_DOWNLOAD_CACHE", None)
+                page = self.client.get("/download")
+                self.assertEqual(page.status_code, 200)
+                self.assertIn(b"BattleBitStatRipper", page.data)
+                self.assertIn(b"No build is present", page.data)
+                self.assertEqual(self.client.get("/download/windows").status_code, 404)
+
+                exe = tmp_path / "BattleBitStatRipper.exe"
+                exe.write_bytes(b"MZ" + b"\0" * 1_200_000)
+                server.DOWNLOAD_PATH = exe
+                server.app.config.pop("_DOWNLOAD_CACHE", None)
+                page = self.client.get("/download")
+                self.assertIn(b"SHA-256", page.data)
+                binary = self.client.get("/download/windows")
+                self.assertEqual(binary.status_code, 200)
+                self.assertGreater(len(binary.data), 1_000_000)
+                binary.close()
+            finally:
+                server.DOWNLOAD_PATH = old_exe
+                server.ZIP_PATH = old_zip
+                server.app.config.pop("_DOWNLOAD_CACHE", None)
 
 
 if __name__ == "__main__":
