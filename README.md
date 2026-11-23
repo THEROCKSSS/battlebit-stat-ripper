@@ -255,6 +255,7 @@ cd server
 - [`docs/PRIVACY.md`](docs/PRIVACY.md) — what is sent, stored, and shareable.
 - [`docs/STEAM.md`](docs/STEAM.md) — Steam OpenID, public profile sync, player cards.
 - [`docs/COLLECTOR.md`](docs/COLLECTOR.md) — background collector, tokens, and the session-binding limit.
+- [`docs/ECOSYSTEM.md`](docs/ECOSYSTEM.md) — GitHub/web tools that can help: server API, Steam Web API, packaging, ops.
 - [`docs/RELEASING.md`](docs/RELEASING.md) — tag → CI build → release assets.
 - [`HANDOFF.md`](HANDOFF.md) — current state and next steps.
 
