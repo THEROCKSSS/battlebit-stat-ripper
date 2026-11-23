@@ -207,6 +207,7 @@ cd server
 - [`docs/REPLICATION.md`](docs/REPLICATION.md) — rebuild the whole pipeline from scratch.
 - [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) — error codes and fixes.
 - [`docs/PRIVACY.md`](docs/PRIVACY.md) — what is sent, stored, and shareable.
+- [`docs/RELEASING.md`](docs/RELEASING.md) — tag → CI build → release assets.
 - [`HANDOFF.md`](HANDOFF.md) — current state and next steps.
 
 ## Limitations

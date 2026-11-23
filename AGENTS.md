@@ -45,3 +45,10 @@ Then exercise register → upload → profile → private → 404 → public.
 ## Build
 
 `build\build.ps1` builds both exes and `dist\BattleBitStatRipper-windows-x64.zip`.
+
+## CI
+
+`.github/workflows/ci.yml` runs the ripper tests on Windows and the server tests on
+Linux for every push and PR. `.github/workflows/release.yml` builds the executables
+and attaches them to a GitHub release when a `v*` tag is pushed; see
+`docs/RELEASING.md`.
