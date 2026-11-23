@@ -57,6 +57,8 @@ Working, locally verified:
   record. A server therefore cannot pull arbitrary Steam IDs. Full evidence in
   `docs/COLLECTOR.md`.
 - **48 tests passing** (ripper 21 incl. upload; server 27 incl. token/upload/revoke).
+- **v0.3.0 release published** — CI-built assets; the downloaded CLI reports
+  `bbr-ripper 0.3.0` and exposes `--watch`, `--upload-url`, `--upload-token`.
 
 Live verification:
 
